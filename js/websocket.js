@@ -41,5 +41,5 @@ export function sendMessage(message) {
 export function setClientID(id) {
     clientID = id;
     localStorage.setItem('clientID', id);
-    console.log('Updated clientID in websocket.js:', clientID); // Отладка
+    console.log('Updated clientID in websocket.js:', clientID);
 }
