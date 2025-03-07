@@ -1,0 +1,486 @@
+/* Существующие стили до #characterCards остаются без изменений */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    background: linear-gradient(135deg, #f0f0f0 0%, #e0e0e0 100%);
+    margin: 0;
+    padding: 10px;
+    min-height: 100vh;
+    gap: 10px;
+}
+
+#roomSelection {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+}
+
+#roomSelect {
+    padding: 10px;
+    font-size: 16px;
+    margin-right: 10px;
+}
+
+#joinRoomBtn {
+    padding: 10px 20px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#joinRoomBtn:hover {
+    background-color: #45a049;
+}
+
+#wrestleCards {
+    width: 150px;
+    height: 600px;
+    padding: 10px;
+    background: linear-gradient(135deg, #2a2a40, #1e1e2f);
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-y: auto;
+    position: relative;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+#abilityCards {
+    width: 130px;
+    flex-grow: 1;
+    padding: 5px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.ability-card {
+    width: 100px;
+    height: 150px;
+    margin-bottom: -100px;
+    background: linear-gradient(135deg, #f5f5f5 0%, #d0d0d0 100%);
+    border: 3px solid #FFD700;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    text-align: center;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    position: relative;
+    transform-origin: bottom center;
+}
+
+.ability-card.placeholder {
+    background: linear-gradient(135deg, #666666, #4d4d4d);
+    border: 3px solid #888888;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+#abilityCards .ability-card:nth-child(odd) {
+    transform: rotate(5deg);
+}
+
+#abilityCards .ability-card:nth-child(even) {
+    transform: rotate(-5deg);
+}
+
+.ability-card:hover:not(.placeholder) {
+    transform: scale(1.1);
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    z-index: 10;
+}
+
+.ability-card.selected {
+    border-color: #FF4500;
+    box-shadow: 0 0 15px rgba(255, 69, 0, 0.7);
+    transform: scale(1.1);
+    z-index: 10;
+}
+
+.ability-card .image {
+    width: 100%;
+    height: 80px;
+    background-color: #ccc;
+    background-size: cover;
+    background-position: center;
+    border-bottom: 2px solid #FFD700;
+}
+
+.ability-card.placeholder .image {
+    background-color: #555555;
+    border-bottom: 2px solid #888888;
+}
+
+.ability-card .info {
+    padding: 5px;
+    font-size: 10px;
+    background: rgba(0, 0, 0, 0.7);
+    color: #fff;
+    height: 68px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.ability-card.placeholder .info {
+    background: rgba(0, 0, 0, 0.5);
+    color: #aaaaaa;
+}
+
+#mainContainer {
+    display: flex;
+    gap: 10px;
+    max-width: 1160px;
+    width: 100%;
+}
+
+#gameContainer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 1000px;
+}
+
+#phaseContainer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #1e1e2f, #2a2a40);
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    font-family: 'Arial', sans-serif;
+    text-transform: uppercase;
+    font-size: 14px;
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    gap: 15px;
+}
+
+#phaseContainer::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(45deg, rgba(255, 255, 255, 0.1), transparent);
+    transform: rotate(45deg);
+    animation: shine 4s infinite linear;
+    pointer-events: none;
+}
+
+#phaseContainer::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 40px;
+    height: 40px;
+    background: #800080;
+    clip-path: polygon(0 0, 100% 0, 0 100%);
+    box-shadow: 0 0 10px rgba(128, 0, 128, 0.7);
+    z-index: 1;
+    transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+
+.team1-turn #phaseContainer::after {
+    background: #FFD700;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+}
+
+#phaseContainer button {
+    padding: 8px 15px;
+    background: linear-gradient(135deg, #4CAF50, #388E3C);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 12px;
+    text-transform: uppercase;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s, background 0.2s, box-shadow 0.2s, filter 0.3s ease;
+}
+
+#phaseContainer button:hover:not(:disabled) {
+    background: linear-gradient(135deg, #45a049, #357a38);
+    transform: scale(1.05);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+#phaseContainer button:disabled {
+    background: linear-gradient(135deg, #666666, #4d4d4d);
+    filter: brightness(0.5);
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+#phaseContainer #exitBtn {
+    background: linear-gradient(135deg, #ff4444, #d32f2f);
+}
+
+#phaseContainer #exitBtn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #e53935, #c62828);
+}
+
+@keyframes shine {
+    0% {
+        transform: rotate(45deg) translateX(-100%);
+    }
+    100% {
+        transform: rotate(45deg) translateX(100%);
+    }
+}
+
+@keyframes phaseGlow {
+    0% {
+        color: #ff6b6b;
+        text-shadow: 0 0 8px rgba(255, 107, 107, 0.7);
+    }
+    50% {
+        color: #ff9f43;
+        text-shadow: 0 0 12px rgba(255, 159, 67, 0.9);
+    }
+    100% {
+        color: #ff6b6b;
+        text-shadow: 0 0 8px rgba(255, 107, 107, 0.7);
+    }
+}
+
+.phase {
+    font-weight: bold;
+    color: #ff6b6b;
+    text-shadow: 0 0 8px rgba(255, 107, 107, 0.7);
+    animation: phaseGlow 2s infinite ease-in-out;
+    flex-shrink: 0;
+}
+
+.progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 8px 15px;
+    border-radius: 8px;
+    box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+    flex-grow: 1;
+    justify-content: center;
+}
+
+.team0, .team1 {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: bold;
+    font-size: 16px;
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+}
+
+.team0 {
+    color: #ff6b6b;
+}
+
+.team1 {
+    color: #4dabf7;
+}
+
+.vs {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.7);
+    text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+}
+
+#gameCanvas {
+    border: 1px solid #333;
+    background-color: #fff;
+    width: 1000px;
+    height: 500px;
+    border-radius: 8px;
+}
+
+#characterCards {
+    width: 100%;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding: 10px 0;
+    background-color: #d0d0d0;
+    border-radius: 8px;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+    height: 200px;
+}
+
+.card {
+    display: inline-block;
+    width: 130px;
+    height: 190px;
+    margin: 5px;
+    border: 2px solid #ccc;
+    border-radius: 10px;
+    overflow: hidden;
+    background-color: #fff;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    transition: transform 0.5s ease; /* Анимация через transform */
+}
+
+.card.dead {
+    opacity: 0.5;
+    filter: grayscale(100%);
+    cursor: not-allowed;
+}
+
+.card:hover:not(.dead) {
+    transform: scale(1.05);
+}
+
+.card.team0 {
+    border-color: #800080;
+}
+
+.card.team1 {
+    border-color: #FFD700;
+}
+
+.card.selected {
+    border-color: #00ff00;
+}
+
+.card.current {
+    border-color: #ffff00;
+}
+
+.image {
+    width: 100%;
+    height: 90px;
+    background-size: cover;
+    background-position: center;
+    position: relative;
+}
+
+.name {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px black;
+}
+
+.hp-container {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    text-align: center;
+}
+
+.hp-diamond {
+    width: 20px;
+    height: 20px;
+    background: linear-gradient(45deg, #ff4d4d, #ff1a1a);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
+    position: relative;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    border: 1px solid white;
+}
+
+.hp {
+    color: white;
+    font-size: 10px;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.info {
+    padding: 5px;
+    font-size: 9px;
+    color: #333;
+    text-align: left;
+    background-color: rgba(255, 255, 255, 0.9);
+    height: 75px;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2px;
+    margin-top: 5px;
+}
+
+.stat {
+    margin: 1px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.label {
+    font-weight: bold;
+    color: #555;
+}
+
+#rightPanel {
+    width: 200px;
+    padding: 10px;
+    background-color: #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+    overflow-y: auto;
+    height: 710px;
+}
+
+#initiativePanel, #battleLog {
+    margin-bottom: 10px;
+}
+
+#initiativePanel h3, #battleLog h3 {
+    margin: 0 0 8px;
+    font-size: 16px;
+}
+
+#initiativeList div {
+    display: flex;
+    align-items: center;
+    padding: 5px;
+    margin: 5px 0;
+    background-color: #f0f0f0;
+    border: 2px solid #888;
+    border-radius: 5px;
+    font-size: 14px;
+    color: #333;
+}
+
+#initiativeList .current {
+    border-color: #ffff00;
+    background-color: #fffacd;
+}
+
+#logEntries {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid #ccc;
+    padding: 5px;
+    background-color: #fff;
+    font-size: 12px;
+}
+
+#logEntries div {
+    margin: 2px 0;
+    padding: 5px;
+    border-bottom: 1px solid #eee;
+}
