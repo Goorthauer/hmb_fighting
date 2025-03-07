@@ -32,6 +32,7 @@ export function connectWebSocket(room, isSpectator, onMessage) {
 
 export function sendMessage(message) {
     if (ws && ws.readyState === WebSocket.OPEN) {
+        console.log('Sending WebSocket message:', message);
         ws.send(message);
     } else {
         console.error('WebSocket is not connected');

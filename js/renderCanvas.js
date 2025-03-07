@@ -1,8 +1,66 @@
-import { gameState, draggingCharacter, dragOffsetX, dragOffsetY, movePath, setMovePath, selectedAbility } from './state.js'; // Добавлен selectedAbility
+import { gameState, draggingCharacter, dragOffsetX, dragOffsetY, movePath, setMovePath, selectedAbility } from './state.js';
 import { ctx, cellWidth, cellHeight } from './constants.js';
 import { findCharacter } from './utils.js';
 
 let movingCharacter = null;
+export const imagesCache = {}; // Кэш для изображений, теперь экспортируем
+
+// Пути к изображениям по умолчанию
+const DEFAULT_IMAGES = {
+    character: '/static/characters/default.png',
+    ability: '/static/abilities/default.jpg',
+    weapon: '/static/weapons/default.png',
+    shield: '/static/shields/default.png',
+    icon: '/static/icons/default.png'
+};
+
+// Загрузка изображения с кэшированием и запасным вариантом
+function loadImage(url, defaultUrl) {
+    if (!url || url.trim() === '') {
+        console.warn(`Image URL is empty or invalid, using default: ${defaultUrl}`);
+        url = defaultUrl;
+    }
+    if (!imagesCache[url]) {
+        const img = new Image();
+        img.src = url;
+        img.onerror = () => {
+            console.warn(`Failed to load image: ${url}, falling back to ${defaultUrl}`);
+            img.src = defaultUrl;
+        };
+        imagesCache[url] = img;
+    }
+    return imagesCache[url];
+}
+
+// Предварительная загрузка всех изображений из gameState
+export function preloadImages(data) {
+    if (!data || !data.teams || !data.weaponsConfig || !data.shieldsConfig || !data.teamsConfig) {
+        console.error('Invalid data for preloading images:', data);
+        return;
+    }
+
+    data.teamsConfig.forEach((teamConfig, index) => {
+        loadImage(teamConfig.iconURL, DEFAULT_IMAGES.icon);
+    });
+
+    data.teams.forEach((team, teamIndex) => {
+        team.characters.forEach((char, charIndex) => {
+            loadImage(char.imageURL, DEFAULT_IMAGES.character);
+            char.abilities.forEach((ability, abilityIndex) => {
+                loadImage(ability.imageURL, DEFAULT_IMAGES.ability);
+            });
+        });
+    });
+
+    Object.entries(data.weaponsConfig).forEach(([key, weapon]) => {
+        loadImage(weapon.imageURL, DEFAULT_IMAGES.weapon);
+    });
+
+    Object.entries(data.shieldsConfig).forEach(([key, shield]) => {
+        loadImage(shield.imageURL, DEFAULT_IMAGES.shield);
+    });
+
+}
 
 export function drawBoard(data) {
     if (!ctx) {
@@ -11,7 +69,6 @@ export function drawBoard(data) {
     }
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-    // Рисуем сетку
     for (let x = 0; x < 20; x++) {
         for (let y = 0; y < 10; y++) {
             ctx.strokeStyle = '#ccc';
@@ -19,26 +76,26 @@ export function drawBoard(data) {
         }
     }
 
-    if (!data || !data.Teams || !Array.isArray(data.Teams) || !data.Board) {
+    if (!data || !data.teams || !Array.isArray(data.teams) || !data.board) {
         console.error('Invalid data in drawBoard:', data);
         return;
     }
 
-    // Подсветка зон при перетаскивании
+    // Подсветка зон при перетаскивании (без изменений)
     if (draggingCharacter) {
-        const startX = draggingCharacter.Position[0];
-        const startY = draggingCharacter.Position[1];
-        const stamina = draggingCharacter.Stamina;
-        const isTwoHanded = (draggingCharacter.Weapon === 'two_handed_halberd' || draggingCharacter.Weapon === 'two_handed_sword');
-        const weaponRange = isTwoHanded ? 2 : 1;
+        const startX = draggingCharacter.position[0];
+        const startY = draggingCharacter.position[1];
+        const stamina = draggingCharacter.stamina;
+        const weapon = data.weaponsConfig[draggingCharacter.weapon];
+        const weaponRange = weapon ? weapon.range : 1;
         const gridX = Math.floor(dragOffsetX / cellWidth);
         const gridY = Math.floor(dragOffsetY / cellHeight);
 
-        if (data.Phase === 'move') {
+        if (data.phase === 'move') {
             for (let x = Math.max(0, startX - stamina); x <= Math.min(19, startX + stamina); x++) {
                 for (let y = Math.max(0, startY - stamina); y <= Math.min(9, startY + stamina); y++) {
                     const dist = Math.abs(x - startX) + Math.abs(y - startY);
-                    if (dist <= stamina && data.Board[x][y] === -1) {
+                    if (dist <= stamina && data.board[x][y] === -1) {
                         ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
                         ctx.fillRect(x * cellWidth, y * cellHeight, cellWidth, cellHeight);
                         ctx.strokeStyle = 'green';
@@ -46,17 +103,18 @@ export function drawBoard(data) {
                     }
                 }
             }
-            if (gridX >= 0 && gridX < 20 && gridY >= 0 && gridY < 10 && data.Board[gridX][gridY] === -1) {
+            if (gridX >= 0 && gridX < 20 && gridY >= 0 && gridY < 10 && data.board[gridX][gridY] === -1) {
                 drawArrow(startX * cellWidth + cellWidth / 2, startY * cellHeight + cellHeight / 2, gridX * cellWidth + cellWidth / 2, gridY * cellHeight + cellHeight / 2, 'blue');
             }
-        } else if (data.Phase === 'action') {
+        } else if (data.phase === 'action') {
             if (selectedAbility) {
-                for (let x = Math.max(0, startX - 1); x <= Math.min(19, startX + 1); x++) {
-                    for (let y = Math.max(0, startY - 1); y <= Math.min(9, startY + 1); y++) {
+                const abilityRange = selectedAbility.range || 1;
+                for (let x = Math.max(0, startX - abilityRange); x <= Math.min(19, startX + abilityRange); x++) {
+                    for (let y = Math.max(0, startY - abilityRange); y <= Math.min(9, startY + abilityRange); y++) {
                         const dist = Math.max(Math.abs(x - startX), Math.abs(y - startY));
-                        if (dist <= 1 && data.Board[x][y] !== -1) {
-                            const target = findCharacter(data.Teams, data.Board[x][y]);
-                            if (target && target.Team !== draggingCharacter.Team) {
+                        if (dist <= abilityRange && data.board[x][y] !== -1) {
+                            const target = findCharacter(data.teams, data.board[x][y]);
+                            if (target && target.team !== draggingCharacter.team) {
                                 ctx.fillStyle = 'rgba(255, 215, 0, 0.2)';
                                 ctx.fillRect(x * cellWidth, y * cellHeight, cellWidth, cellHeight);
                                 ctx.strokeStyle = 'gold';
@@ -69,10 +127,10 @@ export function drawBoard(data) {
                 for (let x = Math.max(0, startX - weaponRange); x <= Math.min(19, startX + weaponRange); x++) {
                     for (let y = Math.max(0, startY - weaponRange); y <= Math.min(9, startY + weaponRange); y++) {
                         const dist = Math.max(Math.abs(x - startX), Math.abs(y - startY));
-                        const isValidRange = (isTwoHanded && dist === weaponRange) || (!isTwoHanded && dist <= weaponRange);
-                        if (isValidRange && data.Board[x][y] !== -1) {
-                            const target = findCharacter(data.Teams, data.Board[x][y]);
-                            if (target && target.Team !== draggingCharacter.Team) {
+                        const isValidRange = (weapon && weapon.isTwoHanded && dist === weaponRange) || (!weapon || !weapon.isTwoHanded && dist <= weaponRange);
+                        if (isValidRange && data.board[x][y] !== -1) {
+                            const target = findCharacter(data.teams, data.board[x][y]);
+                            if (target && target.team !== draggingCharacter.team) {
                                 ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
                                 ctx.fillRect(x * cellWidth, y * cellHeight, cellWidth, cellHeight);
                                 ctx.strokeStyle = 'red';
@@ -82,34 +140,70 @@ export function drawBoard(data) {
                     }
                 }
             }
-            if (gridX >= 0 && gridX < 20 && gridY >= 0 && gridY < 10 && data.Board[gridX][gridY] !== -1) {
-                const target = findCharacter(data.Teams, data.Board[gridX][gridY]);
-                if (target && target.Team !== draggingCharacter.Team) {
+            if (gridX >= 0 && gridX < 20 && gridY >= 0 && gridY < 10 && data.board[gridX][gridY] !== -1) {
+                const target = findCharacter(data.teams, data.board[gridX][gridY]);
+                if (target && target.team !== draggingCharacter.team) {
                     const attackDist = Math.max(Math.abs(gridX - startX), Math.abs(gridY - startY));
-                    if ((isTwoHanded && attackDist === weaponRange) || (!isTwoHanded && attackDist <= weaponRange)) {
+                    const isValidRange = (weapon && weapon.isTwoHanded && attackDist === weaponRange) || (!weapon || !weapon.isTwoHanded && attackDist <= weaponRange);
+                    if (isValidRange) {
                         drawArrow(startX * cellWidth + cellWidth / 2, startY * cellHeight + cellHeight / 2, gridX * cellWidth + cellWidth / 2, gridY * cellHeight + cellHeight / 2, 'red', true);
                     }
                 }
             }
         }
     }
-
     // Рисуем персонажей
     for (let x = 0; x < 20; x++) {
         for (let y = 0; y < 10; y++) {
-            const charId = data.Board[x][y];
-            if (charId !== -1 && (!movingCharacter || movingCharacter.ID !== charId)) {
-                const char = findCharacter(data.Teams, charId);
+            const charId = data.board[x][y];
+            if (charId !== -1 && (!movingCharacter || movingCharacter.id !== charId)) {
+                const char = findCharacter(data.teams, charId);
                 if (!char) {
-                    console.warn(`Character with ID ${charId} not found in Teams`);
+                    console.warn(`Character with ID ${charId} not found in teams`);
                     continue;
                 }
-                ctx.fillStyle = char.Team === 0 ? '#800080' : '#FFD700';
+
+                // Запасной вариант: рисуем прямоугольник
+                ctx.fillStyle = char.team === 0 ? '#800080' : '#FFD700';
                 ctx.fillRect(x * cellWidth + 5, y * cellHeight + 5, cellWidth - 10, cellHeight - 10);
+
+                // Иконка команды
+                const teamIcon = imagesCache[data.teamsConfig[char.team].iconURL] || imagesCache[DEFAULT_IMAGES.icon];
+                if (teamIcon && teamIcon.complete && teamIcon.naturalWidth !== 0) {
+                    ctx.drawImage(teamIcon, x * cellWidth + 2, y * cellHeight + 2, cellWidth - 4, cellHeight - 4);
+                } else {
+                    console.warn(`Team icon for ${char.name} is not valid:`, teamIcon);
+                }
+
+                // Изображение персонажа
+                const charImage = imagesCache[char.imageURL] || imagesCache[DEFAULT_IMAGES.character];
+                if (charImage && charImage.complete && charImage.naturalWidth !== 0) {
+                    ctx.drawImage(charImage, x * cellWidth, y * cellHeight, cellWidth, cellHeight);
+                } else {
+                    console.warn(`Character image for ${char.name} is not valid:`, charImage);
+                }
+
+                // Оружие и щит
+                const weapon = data.weaponsConfig[char.weapon];
+                if (weapon && weapon.imageURL) {
+                    const weaponImage = imagesCache[weapon.imageURL] || imagesCache[DEFAULT_IMAGES.weapon];
+                    if (weaponImage && weaponImage.complete && weaponImage.naturalWidth !== 0) {
+                        ctx.drawImage(weaponImage, x * cellWidth + cellWidth - 15, y * cellHeight, 15, 15);
+                    }
+                }
+                const shield = data.shieldsConfig[char.shield];
+                if (shield && shield.imageURL) {
+                    const shieldImage = imagesCache[shield.imageURL] || imagesCache[DEFAULT_IMAGES.shield];
+                    if (shieldImage && shieldImage.complete && shieldImage.naturalWidth !== 0) {
+                        ctx.drawImage(shieldImage, x * cellWidth, y * cellHeight + cellHeight - 15, 15, 15);
+                    }
+                }
+
                 ctx.fillStyle = '#fff';
                 ctx.font = '12px Arial';
-                ctx.fillText(`${char.Name} (${char.HP})`, x * cellWidth + 5, y * cellHeight + 20);
-                if (char.ID === data.CurrentTurn) {
+                ctx.fillText(`${char.name} (${char.hp})`, x * cellWidth + 5, y * cellHeight + 20);
+
+                if (char.id === data.currentTurn) {
                     ctx.strokeStyle = 'yellow';
                     ctx.lineWidth = 3;
                     ctx.strokeRect(x * cellWidth, y * cellHeight, cellWidth, cellHeight);
@@ -122,19 +216,37 @@ export function drawBoard(data) {
     // Рисуем движущегося персонажа
     if (movingCharacter) {
         const char = movingCharacter;
-        ctx.fillStyle = char.Team === 0 ? '#800080' : '#FFD700';
+        ctx.fillStyle = char.team === 0 ? '#800080' : '#FFD700';
         ctx.fillRect(char.currentX + 5, char.currentY + 5, cellWidth - 10, cellHeight - 10);
+
+        const teamIcon = imagesCache[data.teamsConfig[char.team].iconURL] || imagesCache[DEFAULT_IMAGES.icon];
+        if (teamIcon && teamIcon.complete) {
+            ctx.drawImage(teamIcon, char.currentX + 2, char.currentY + 2, cellWidth - 4, cellHeight - 4);
+        }
+        const charImage = imagesCache[char.imageURL] || imagesCache[DEFAULT_IMAGES.character];
+        if (charImage && charImage.complete) {
+            ctx.drawImage(charImage, char.currentX, char.currentY, cellWidth, cellHeight);
+        }
         ctx.fillStyle = '#fff';
-        ctx.fillText(`${char.Name} (${char.HP})`, char.currentX + 5, char.currentY + 20);
+        ctx.fillText(`${char.name} (${char.hp})`, char.currentX + 5, char.currentY + 20);
     }
 
     // Рисуем перетаскиваемого персонажа
     if (draggingCharacter) {
         const char = draggingCharacter;
-        ctx.fillStyle = char.Team === 0 ? '#800080' : '#FFD700';
+        ctx.fillStyle = char.team === 0 ? '#800080' : '#FFD700';
         ctx.fillRect(dragOffsetX - cellWidth / 2 + 5, dragOffsetY - cellHeight / 2 + 5, cellWidth - 10, cellHeight - 10);
+
+        const teamIcon = imagesCache[data.teamsConfig[char.team].iconURL] || imagesCache[DEFAULT_IMAGES.icon];
+        if (teamIcon && teamIcon.complete) {
+            ctx.drawImage(teamIcon, dragOffsetX - cellWidth / 2 + 2, dragOffsetY - cellHeight / 2 + 2, cellWidth - 4, cellHeight - 4);
+        }
+        const charImage = imagesCache[char.imageURL] || imagesCache[DEFAULT_IMAGES.character];
+        if (charImage && charImage.complete) {
+            ctx.drawImage(charImage, dragOffsetX - cellWidth / 2, dragOffsetY - cellHeight / 2, cellWidth, cellHeight);
+        }
         ctx.fillStyle = '#fff';
-        ctx.fillText(`${char.Name} (${char.HP})`, dragOffsetX - cellWidth / 2 + 5, dragOffsetY - cellHeight / 2 + 20);
+        ctx.fillText(`${char.name} (${char.hp})`, dragOffsetX - cellWidth / 2 + 5, dragOffsetY - cellHeight / 2 + 20);
     }
 }
 

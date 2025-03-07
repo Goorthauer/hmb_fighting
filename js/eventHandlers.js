@@ -1,17 +1,26 @@
-import { gameState, draggingCharacter, selectedCharacter, selectedAbility, setDraggingCharacter, setSelectedCharacter, setSelectedAbility, setMovePath, setDragOffsetX, setDragOffsetY } from './state.js';
-import { connectWebSocket, sendMessage } from './websocket.js';
-import { animateMove, drawBoard } from './renderCanvas.js';
-import { calculatePath, getGridPosition, canMove, canAttackOrUseAbility, isWithinAttackRange } from './gameLogic.js';
-import { findCharacter } from './utils.js';
-import { canvas } from './constants.js';
+import {
+    gameState,
+    draggingCharacter,
+    selectedCharacter,
+    selectedAbility,
+    setDraggingCharacter,
+    setSelectedCharacter,
+    setSelectedAbility,
+    setMovePath,
+    setDragOffsetX,
+    setDragOffsetY
+} from './state.js';
+import {connectWebSocket, sendMessage} from './websocket.js';
+import {animateMove, drawBoard} from './renderCanvas.js';
+import {calculatePath, getGridPosition, canMove, canAttackOrUseAbility, isWithinAttackRange} from './gameLogic.js';
+import {findCharacter} from './utils.js';
+import {canvas} from './constants.js';
 
 export function setupEventListeners(myTeam) {
-    if (!myTeam && myTeam !== 0) {
+    if (myTeam === null || myTeam === undefined) {
         console.error('myTeam is not initialized yet, delaying event listeners setup');
         return;
     }
-    console.log('Setting up event listeners with myTeam:', myTeam);
-
     canvas.addEventListener('mousedown', (e) => handleMouseDown(e, myTeam));
     canvas.addEventListener('mousemove', (e) => handleMouseMove(e));
     canvas.addEventListener('mouseup', (e) => handleMouseUp(e, myTeam));
@@ -20,18 +29,16 @@ export function setupEventListeners(myTeam) {
 }
 
 function handleMouseDown(event, myTeam) {
-    if (!gameState || !gameState.Teams || !Array.isArray(gameState.Teams)) {
-        console.log('Game state not fully initialized yet');
+    if (!gameState || !gameState.teams || !Array.isArray(gameState.teams)) {
         return;
     }
 
-    const { gridX, gridY, x, y } = getGridPosition(event);
+    const {gridX, gridY, x, y} = getGridPosition(event);
     if (gridX >= 0 && gridX < 20 && gridY >= 0 && gridY < 10) {
-        const charId = gameState.Board[gridX][gridY];
+        const charId = gameState.board[gridX][gridY];
         if (charId !== -1) {
-            const char = findCharacter(gameState.Teams, charId);
-            if (char && char.Team === myTeam && char.ID === gameState.CurrentTurn) {
-                console.log('MouseDown: Setting draggingCharacter:', char);
+            const char = findCharacter(gameState.teams, charId);
+            if (char && char.team === myTeam && char.id === gameState.currentTurn) {
                 setDraggingCharacter(char);
                 setDragOffsetX(x);
                 setDragOffsetY(y);
@@ -44,94 +51,97 @@ function handleMouseDown(event, myTeam) {
 
 function handleMouseMove(event) {
     if (!draggingCharacter) return;
-    const { x, y } = getGridPosition(event);
+    const {x, y} = getGridPosition(event);
     setDragOffsetX(x);
     setDragOffsetY(y);
     drawBoard(gameState);
 }
 
 function handleMouseUp(event, myTeam) {
-    console.log('MouseUp: draggingCharacter:', draggingCharacter, 'gameState:', gameState);
     if (!draggingCharacter || !gameState) {
-        console.log('No dragging character or game state not fully initialized');
         setDraggingCharacter(null);
         return;
     }
 
-    const { gridX, gridY } = getGridPosition(event);
+    const {gridX, gridY} = getGridPosition(event);
     const clientID = localStorage.getItem('clientID');
-    const draggedChar = { ...draggingCharacter };
+    const draggedChar = {...draggingCharacter};
 
     if (gridX >= 0 && gridX < 20 && gridY >= 0 && gridY < 10) {
-        const path = calculatePath(draggedChar.Position[0], draggedChar.Position[1], gridX, gridY);
-        setMovePath(path);
+        const path = calculatePath(draggedChar.position[0], draggedChar.position[1], gridX, gridY);
 
+        // Проверяем валидность действия перед анимацией
         if (canMove(gridX, gridY)) {
+            setMovePath(path);
             animateMove(draggedChar, path, () => {
                 sendMessage(JSON.stringify({
                     type: 'move',
                     clientID: clientID,
-                    characterID: draggedChar.ID,
+                    characterID: draggedChar.id,
                     position: [gridX, gridY]
                 }));
             });
-        } else if (canAttackOrUseAbility(gridX, gridY, myTeam) && isWithinAttackRange(draggedChar, gridX, gridY)) {
-            const target = findCharacter(gameState.Teams, gameState.Board[gridX][gridY]);
+        } else if (canAttackOrUseAbility(gridX, gridY, myTeam) && isWithinAttackRange(draggedChar, gridX, gridY, gameState.weaponsConfig, selectedAbility)) {
+            const target = findCharacter(gameState.teams, gameState.board[gridX][gridY]);
+            setMovePath(path);
             animateMove(draggedChar, path, () => {
                 if (selectedAbility) {
                     sendMessage(JSON.stringify({
                         type: 'ability',
                         clientID: clientID,
-                        characterID: draggedChar.ID,
-                        targetID: target.ID,
-                        ability: selectedAbility.Name
+                        characterID: draggedChar.id,
+                        targetID: target.id,
+                        ability: selectedAbility.name
                     }));
                 } else {
-                    sendMessage(JSON.stringify({
-                        type: 'attack',
-                        clientID: clientID,
-                        characterID: draggedChar.ID,
-                        targetID: target.ID
-                    }));
                 }
             }, true);
+        } else {
+            setDraggingCharacter(null);
+            drawBoard(gameState); // Перерисовываем поле без изменений
+            return;
         }
+    } else {
+        setDraggingCharacter(null);
+        drawBoard(gameState); // Перерисовываем поле без изменений
+        return;
     }
     setDraggingCharacter(null);
 }
 
 function handleClick(event, myTeam) {
-    if (!gameState || !gameState.Teams || draggingCharacter) return;
+    if (!gameState || !gameState.teams || draggingCharacter) return;
 
-    const { gridX, gridY } = getGridPosition(event);
+    const {gridX, gridY} = getGridPosition(event);
     const clientID = localStorage.getItem('clientID');
     if (gridX >= 0 && gridX < 20 && gridY >= 0 && gridY < 10) {
-        const charId = gameState.Board[gridX][gridY];
+        const charId = gameState.board[gridX][gridY];
         if (charId !== -1 && canAttackOrUseAbility(gridX, gridY, myTeam)) {
-            const target = findCharacter(gameState.Teams, charId);
-            const currentChar = findCharacter(gameState.Teams, gameState.CurrentTurn);
-            if (currentChar && currentChar.Team === myTeam && isWithinAttackRange(currentChar, gridX, gridY)) {
-                const path = calculatePath(currentChar.Position[0], currentChar.Position[1], gridX, gridY);
-                const charToAct = { ...currentChar };
-                const targetToAct = { ...target };
+            const target = findCharacter(gameState.teams, charId);
+            const currentChar = findCharacter(gameState.teams, gameState.currentTurn);
+            if (currentChar && currentChar.team === myTeam && isWithinAttackRange(currentChar, gridX, gridY, gameState.weaponsConfig, selectedAbility)) {
+                const path = calculatePath(currentChar.position[0], currentChar.position[1], gridX, gridY);
+                const charToAct = {...currentChar};
+                const targetToAct = {...target};
 
                 animateMove(charToAct, path, () => {
                     if (selectedAbility) {
                         sendMessage(JSON.stringify({
                             type: 'ability',
                             clientID: clientID,
-                            characterID: charToAct.ID,
-                            targetID: targetToAct.ID,
-                            ability: selectedAbility.Name
+                            characterID: charToAct.id,
+                            targetID: targetToAct.id,
+                            ability: selectedAbility.name
                         }));
-                        currentChar.Abilities = currentChar.Abilities.filter(a => a.Name !== selectedAbility.Name);
+                        currentChar.abilities = currentChar.abilities.filter(a => a.name !== selectedAbility.name);
                         setSelectedAbility(null);
                     } else {
+
                         sendMessage(JSON.stringify({
                             type: 'attack',
                             clientID: clientID,
-                            characterID: charToAct.ID,
-                            targetID: targetToAct.ID
+                            characterID: charToAct.id,
+                            targetID: targetToAct.id
                         }));
                     }
                 }, true);
@@ -142,8 +152,8 @@ function handleClick(event, myTeam) {
 
 function handleEndTurn(myTeam) {
     const clientID = localStorage.getItem('clientID');
-    const currentChar = findCharacter(gameState.Teams, gameState.CurrentTurn);
-    if (currentChar && currentChar.Team === myTeam) {
+    const currentChar = findCharacter(gameState.teams, gameState.currentTurn);
+    if (currentChar && currentChar.team === myTeam) {
         sendMessage(JSON.stringify({
             type: 'end_turn',
             clientID: clientID

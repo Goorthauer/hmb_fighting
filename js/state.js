@@ -9,6 +9,7 @@ export let currentRoom = localStorage.getItem('currentRoom') || null;
 export let movePath = [];
 
 export function setGameState(state) {
+    console.log('Setting game state:', state);
     gameState = state;
 }
 

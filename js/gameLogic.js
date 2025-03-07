@@ -28,20 +28,31 @@ export function getGridPosition(event) {
 }
 
 export function canMove(gridX, gridY) {
-    return gameState.Phase === 'move' && gameState.Board[gridX][gridY] === -1;
+    return gameState.phase === 'move' && gameState.board[gridX][gridY] === -1;
 }
 
 export function canAttackOrUseAbility(gridX, gridY, myTeam) {
-    if (gameState.Phase !== 'action' || gameState.Board[gridX][gridY] === -1) return false;
-    const target = findCharacter(gameState.Teams, gameState.Board[gridX][gridY]);
-    return target && target.Team !== myTeam;
+    if (gameState.phase !== 'action' || gameState.board[gridX][gridY] === -1) return false;
+    const target = findCharacter(gameState.teams, gameState.board[gridX][gridY]);
+    return target && target.team !== myTeam;
 }
 
-export function isWithinAttackRange(attacker, targetX, targetY) {
-    const startX = attacker.Position[0];
-    const startY = attacker.Position[1];
-    const isTwoHanded = (attacker.Weapon === 'two_handed_halberd' || attacker.Weapon === 'two_handed_sword');
-    const weaponRange = isTwoHanded ? 2 : 1;
+export function isWithinAttackRange(attacker, targetX, targetY, weaponsConfig, ability = null) {
+    const startX = attacker.position[0];
+    const startY = attacker.position[1];
+
+    // Если используется способность, проверяем её диапазон
+    if (ability && ability.range !== undefined) {
+        const dist = Math.max(Math.abs(targetX - startX), Math.abs(targetY - startY));
+        return dist <= ability.range; // Проверяем, что цель в пределах диапазона способности
+    }
+
+    // Если способность не используется, проверяем диапазон оружия
+    const weapon = weaponsConfig[attacker.weapon];
+    const weaponRange = weapon ? weapon.range : 1;
+    const isTwoHanded = weapon ? weapon.isTwoHanded : false;
     const dist = Math.max(Math.abs(targetX - startX), Math.abs(targetY - startY));
+
+    // Проверяем диапазон оружия
     return (isTwoHanded && dist === weaponRange) || (!isTwoHanded && dist <= weaponRange);
 }

@@ -9,7 +9,7 @@ let isUpdatingCards = false;
 let isUpdatingAbilities = false;
 
 function saveTurnState(gameSessionId) {
-    const state = { turnOrder, roundStarted, previousTurn: previousState?.CurrentTurn };
+    const state = { turnOrder, roundStarted, previousTurn: previousState?.currentTurn };
     localStorage.setItem(`turnState_${gameSessionId}`, JSON.stringify(state));
 }
 
@@ -19,7 +19,7 @@ function loadTurnState(gameSessionId) {
         const state = JSON.parse(savedState);
         turnOrder = state.turnOrder || [];
         roundStarted = state.roundStarted || false;
-        previousState = state.previousTurn ? { CurrentTurn: state.previousTurn } : null;
+        previousState = state.previousTurn ? { currentTurn: state.previousTurn } : null;
         currentGameSessionId = gameSessionId;
         return true;
     }
@@ -34,25 +34,35 @@ function resetTurnState() {
 
 export function updatePhaseAndProgress(data) {
     const phaseContainer = document.getElementById('phaseContainer');
-    if (!phaseContainer) return;
+    if (!phaseContainer) {
+        console.error('Phase container not found');
+        return;
+    }
 
-    const team0Alive = data.Teams?.[0]?.Characters.filter(c => c.HP > 0).length || 0;
-    const team1Alive = data.Teams?.[1]?.Characters.filter(c => c.HP > 0).length || 0;
-    const currentChar = findCharacter(data.Teams, data.CurrentTurn);
-    const phaseText = data.Phase === 'move' ? 'Move' : 'Action';
+    const team0Alive = data.teams?.[0]?.characters.filter(c => c.hp > 0).length || 0;
+    const team1Alive = data.teams?.[1]?.characters.filter(c => c.hp > 0).length || 0;
+    const currentChar = findCharacter(data.teams, data.currentTurn);
+    const phaseText = data.phase === 'move' ? 'Move' : 'Action';
 
-    phaseContainer.querySelector('.phase').textContent = `${phaseText} - ${currentChar ? currentChar.Name + ' team ' + currentChar.Team : 'Unknown'}`;
+    console.log('Updating phase and progress:', {
+        currentTurn: data.currentTurn,
+        currentChar,
+        phaseText,
+        team0Alive,
+        team1Alive
+    });
+
+    phaseContainer.querySelector('.phase').textContent = `${phaseText} - ${currentChar ? currentChar.name + ' team ' + currentChar.team : 'Unknown'}`;
     phaseContainer.querySelector('.team0').textContent = `⚔️${team0Alive}`;
     phaseContainer.querySelector('.team1').textContent = `${team1Alive}🛡️`;
 
     phaseContainer.classList.remove('team0-turn', 'team1-turn');
     if (currentChar) {
-        phaseContainer.classList.add(`team${currentChar.Team}-turn`);
+        phaseContainer.classList.add(`team${currentChar.team}-turn`);
         phaseContainer.style.display = 'none';
         setTimeout(() => phaseContainer.style.display = 'flex', 0);
     }
 }
-
 export function updateCharacterCards(data) {
     if (isUpdatingCards) return;
     isUpdatingCards = true;
@@ -64,27 +74,27 @@ export function updateCharacterCards(data) {
     }
 
     characterCards.innerHTML = '';
-    const gameSessionId = data.GameSessionId || 'default_session';
+    const gameSessionId = data.gameSessionId || 'default_session';
 
     if (currentGameSessionId && currentGameSessionId !== gameSessionId) {
         resetTurnState();
     }
 
     let allChars = [];
-    if (data.Teams && Array.isArray(data.Teams)) {
-        data.Teams.forEach(team => {
-            team.Characters.forEach(char => {
-                if (char.HP > 0) allChars.push(char);
+    if (data.teams && Array.isArray(data.teams)) {
+        data.teams.forEach(team => {
+            team.characters.forEach(char => {
+                if (char.hp > 0) allChars.push(char);
             });
         });
     }
 
     if (!roundStarted || turnOrder.length === 0) {
         if (loadTurnState(gameSessionId)) {
-            console.log('Loaded turn state:', { turnOrder, previousTurn: previousState?.CurrentTurn });
+            console.log('Loaded turn state:', { turnOrder, previousTurn: previousState?.currentTurn });
         } else {
-            allChars.sort((a, b) => b.Initiative - a.Initiative);
-            turnOrder = allChars.map(char => char.ID);
+            allChars.sort((a, b) => b.initiative - a.initiative);
+            turnOrder = allChars.map(char => char.id);
             roundStarted = true;
             currentGameSessionId = gameSessionId;
         }
@@ -94,31 +104,30 @@ export function updateCharacterCards(data) {
     saveTurnState(gameSessionId);
     isUpdatingCards = false;
 }
-
 function renderCards(container, chars, data) {
     chars.forEach(char => {
         const card = document.createElement('div');
-        card.classList.add('card', `team${char.Team}`);
-        card.dataset.id = char.ID;
-        if (selectedCharacter && selectedCharacter.ID === char.ID) card.classList.add('selected');
-        if (char.ID === data.CurrentTurn) card.classList.add('current');
+        card.classList.add('card', `team${char.team}`);
+        card.dataset.id = char.id;
+        if (selectedCharacter && selectedCharacter.id === char.id) card.classList.add('selected');
+        if (char.id === data.currentTurn) card.classList.add('current');
 
         card.innerHTML = `
-            <div class="image" style="background-image: url('./image/char_${char.ID % 5 || 5}.png');">
-                <div class="name">${char.Name}</div>
-                <div class="hp-container"><div class="hp-diamond"><div class="hp">${char.HP}</div></div></div>
+            <div class="image" style="background-image: url('${char.imageURL}');">
+                <div class="name">${char.name}</div>
+                <div class="hp-container"><div class="hp-diamond"><div class="hp">${char.hp}</div></div></div>
             </div>
             <div class="info">
-                <div class="stat"><span class="label">Stamina:</span> ${char.Stamina}</div>
-                <div class="stat"><span class="label">Attack:</span> ${char.AttackMin}-${char.AttackMax}</div>
-                <div class="stat"><span class="label">Defense:</span> ${char.Defense}</div>
-                <div class="stat"><span class="label">Init:</span> ${char.Initiative}</div>
-                <div class="stat"><span class="label">Weapon:</span> ${char.Weapon || 'None'}</div>
-                <div class="stat"><span class="label">Shield:</span> ${char.Shield || 'None'}</div>
+                <div class="stat"><span class="label">Stamina:</span> ${char.stamina}</div>
+                <div class="stat"><span class="label">Attack:</span> ${char.attackMin}-${char.attackMax}</div>
+                <div class="stat"><span class="label">Defense:</span> ${char.defense}</div>
+                <div class="stat"><span class="label">Init:</span> ${char.initiative}</div>
+                <div class="stat"><span class="label">Weapon:</span> ${data.weaponsConfig[char.weapon]?.name || 'None'}</div>
+                <div class="stat"><span class="label">Shield:</span> ${data.shieldsConfig[char.shield]?.name || 'None'}</div>
             </div>
         `;
         card.addEventListener('click', () => {
-            if (char.HP > 0) setSelectedCharacter(char);
+            if (char.hp > 0) setSelectedCharacter(char);
             updateCharacterCards(data);
         });
         container.appendChild(card);
@@ -136,15 +145,15 @@ export function updateAbilityCards(myTeam, data) {
     }
     abilityCards.innerHTML = '';
 
-    const currentChar = findCharacter(data.Teams, data.CurrentTurn);
-    if (currentChar && currentChar.Team === myTeam && currentChar.Abilities?.length) {
-        currentChar.Abilities.forEach(ability => {
+    const currentChar = findCharacter(data.teams, data.currentTurn);
+    if (currentChar && currentChar.team === myTeam && currentChar.abilities?.length) {
+        currentChar.abilities.forEach(ability => {
             const card = document.createElement('div');
             card.classList.add('ability-card');
-            if (selectedAbility && selectedAbility.Name === ability.Name) card.classList.add('selected');
+            if (selectedAbility && selectedAbility.name === ability.name) card.classList.add('selected');
             card.innerHTML = `
-                <div class="image" style="background-image: url('./image/ability_${ability.Name.toLowerCase()}.png');"></div>
-                <div class="info"><strong>${ability.Name}</strong><br>${ability.Description || 'No description'}</div>
+                <div class="image" style="background-image: url('${ability.imageURL}');"></div>
+                <div class="info"><strong>${ability.name}</strong><br>${ability.description || 'No description'}</div>
             `;
             card.addEventListener('click', () => {
                 setSelectedAbility(ability);
@@ -157,29 +166,27 @@ export function updateAbilityCards(myTeam, data) {
 }
 
 export function updateBattleLog(data) {
-    if (!data || !data.Teams || !Array.isArray(data.Teams)) {
+    if (!data || !data.teams || !Array.isArray(data.teams)) {
         console.warn('Invalid data in updateBattleLog:', data);
         return;
     }
 
-    if (!previousState || !previousState.Teams || !Array.isArray(previousState.Teams)) {
-        console.log('Initializing previousState with current data');
-        previousState = { ...data, Teams: data.Teams.map(team => ({ ...team, Characters: [...team.Characters] })) };
+    if (!previousState || !previousState.teams || !Array.isArray(previousState.teams)) {
+        previousState = { ...data, teams: data.teams.map(team => ({ ...team, characters: [...team.characters] })) };
         return;
     }
 
-    console.log('updateBattleLog - previousState:', previousState, 'data:', data);
 
-    const prevChar = findCharacter(previousState.Teams, previousState.CurrentTurn);
-    const currChar = findCharacter(data.Teams, data.CurrentTurn);
+    const prevChar = findCharacter(previousState.teams, previousState.currentTurn);
+    const currChar = findCharacter(data.teams, data.currentTurn);
 
-    if (previousState.Phase !== data.Phase) {
-        addLogEntry(`Phase changed to ${data.Phase} for ${currChar ? currChar.Name : 'Unknown'}`);
+    if (previousState.phase !== data.phase) {
+        addLogEntry(`Phase changed to ${data.phase} for ${currChar ? currChar.name : 'Unknown'}`);
     }
 
     for (let teamIdx = 0; teamIdx < 2; teamIdx++) {
-        const prevTeam = previousState.Teams[teamIdx]?.Characters;
-        const currTeam = data.Teams[teamIdx]?.Characters;
+        const prevTeam = previousState.teams[teamIdx]?.characters;
+        const currTeam = data.teams[teamIdx]?.characters;
 
         if (!prevTeam || !currTeam) {
             console.warn(`Team ${teamIdx} is missing in previousState or data:`, { prevTeam, currTeam });
@@ -189,16 +196,16 @@ export function updateBattleLog(data) {
         for (let i = 0; i < Math.min(prevTeam.length, currTeam.length); i++) {
             const prev = prevTeam[i];
             const curr = currTeam[i];
-            if (prev.Position[0] !== curr.Position[0] || prev.Position[1] !== curr.Position[1]) {
-                addLogEntry(`${curr.Name} moved from (${prev.Position[0]}, ${prev.Position[1]}) to (${curr.Position[0]}, ${curr.Position[1]})`);
+            if (prev.position[0] !== curr.position[0] || prev.position[1] !== curr.position[1]) {
+                addLogEntry(`${curr.name} moved from (${prev.position[0]}, ${prev.position[1]}) to (${curr.position[0]}, ${curr.position[1]})`);
             }
-            if (prev.HP !== curr.HP && curr.HP > 0) {
-                addLogEntry(`${curr.Name} took ${prev.HP - curr.HP} damage (HP: ${curr.HP})`);
+            if (prev.hp !== curr.hp && curr.hp > 0) {
+                addLogEntry(`${curr.name} took ${prev.hp - curr.hp} damage (HP: ${curr.hp})`);
             }
-            if (prev.HP > 0 && curr.HP <= 0) {
-                addLogEntry(`${curr.Name} was defeated`);
+            if (prev.hp > 0 && curr.hp <= 0) {
+                addLogEntry(`${curr.name} was defeated`);
             }
         }
     }
-    previousState = { ...data, Teams: data.Teams.map(team => ({ ...team, Characters: [...team.Characters] })) };
+    previousState = { ...data, teams: data.teams.map(team => ({ ...team, characters: [...team.characters] })) };
 }

@@ -3,8 +3,8 @@ import { gameState } from './state.js';
 export function findCharacter(teams, id) {
     if (!teams || !Array.isArray(teams)) return null;
     for (let team of teams) {
-        for (let char of team.Characters) {
-            if (char.ID === id) return char;
+        for (let char of team.characters) {
+            if (char.id === id) return char;
         }
     }
     return null;

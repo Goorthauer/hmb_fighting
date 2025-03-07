@@ -1,10 +1,39 @@
 import { connectWebSocket } from './websocket.js';
-import { drawBoard } from './renderCanvas.js';
+import { drawBoard, preloadImages, imagesCache } from './renderCanvas.js';
 import { updateCharacterCards, updateAbilityCards, updatePhaseAndProgress, updateBattleLog } from './renderUI.js';
 import { setGameState, setCurrentRoom, setIsSpectator, setSelectedCharacter, setSelectedAbility } from './state.js';
 import { setupEventListeners } from './eventHandlers.js';
 
 let myTeam = null;
+
+// Функция для ожидания загрузки всех изображений из кэша
+function waitForImages() {
+    const images = Object.values(imagesCache);
+    return Promise.all(
+        images.map((img) => {
+            if (img.complete && img.naturalWidth !== 0) {
+                return Promise.resolve(); // Изображение уже загружено и валидно
+            }
+            return new Promise((resolve) => {
+                const timeout = setTimeout(() => {
+                    console.warn(`Image loading timed out: ${img.src}`);
+                    resolve(); // Продолжаем, даже если изображение не загрузилось
+                }, 500); // Таймаут 500 ms
+
+                img.onload = () => {
+                    clearTimeout(timeout);
+                    if (img.naturalWidth !== 0) resolve();
+                    else resolve(); // Даже если загружено с ошибкой, продолжаем
+                };
+                img.onerror = () => {
+                    clearTimeout(timeout);
+                    console.warn(`Image failed to load: ${img.src}`);
+                    resolve(); // Ошибка загрузки, продолжаем
+                };
+            });
+        })
+    );
+}
 
 document.getElementById('joinRoomBtn').addEventListener('click', () => {
     const currentClientID = localStorage.getItem('clientID');
@@ -15,7 +44,6 @@ document.getElementById('joinRoomBtn').addEventListener('click', () => {
     }
 
     const room = document.getElementById('roomSelect').value;
-    console.log('Joining room:', room, 'with clientID:', currentClientID);
     document.getElementById('roomSelection').classList.add('hidden');
     document.getElementById('mainContainer').classList.remove('hidden');
     document.getElementById('wrestleCards').classList.remove('hidden');
@@ -28,9 +56,17 @@ document.getElementById('joinRoomBtn').addEventListener('click', () => {
             const data = JSON.parse(event.data);
             console.log('Received WebSocket data:', data);
             setGameState(data);
-            myTeam = data.TeamID;
+            myTeam = data.teamID;
 
-            // Обновляем UI
+            // Предварительно загружаем изображения
+            preloadImages(data);
+
+            // Ждём, пока все изображения загрузятся
+            await waitForImages().catch((error) => {
+                console.warn('Image loading failed or timed out, continuing without images:', error);
+            });
+
+            // Принудительно обновляем интерфейс
             updateCharacterCards(data);
             updateAbilityCards(myTeam, data);
             drawBoard(data);

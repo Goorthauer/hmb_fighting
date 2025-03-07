@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Battle Game</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<!-- Основной игровой интерфейс -->
+<div id="mainContainer">
+  <!-- Левая панель: Карты способностей -->
+  <div id="wrestleCards">
+    <div id="abilityCards"></div>
+  </div>
+
+  <!-- Центральная панель: Игровое поле и информация -->
+  <div id="gameContainer">
+    <!-- Фаза и прогресс -->
+    <div id="phaseContainer">
+      <span class="phase"></span>
+      <span class="progress">
+                <span class="team0"></span>
+                <span class="vs">vs</span>
+                <span class="team1"></span>
+            </span>
+      <button id="endTurnBtn">End Turn</button>
+    </div>
+
+    <!-- Игровое поле -->
+    <canvas id="gameCanvas" width="1000" height="500"></canvas>
+
+    <!-- Карты персонажей -->
+    <div id="characterCards"></div>
+  </div>
+
+  <!-- Правая панель: Лог битвы -->
+  <div id="rightPanel">
+    <div id="battleLog">
+      <h3>Battle Log</h3>
+      <div id="logEntries"></div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { setGameState } from './js/state.js';
+  import { connectWebSocket, setClientID } from './js/websocket.js';
+  import { updateCharacterCards, updateAbilityCards, updatePhaseAndProgress, updateBattleLog } from './js/renderUI.js';
+  import { drawBoard } from './js/renderCanvas.js';
+  import { setupEventListeners } from './js/eventHandlers.js';
+
+  // Проверка clientID при загрузке страницы
+  const storedClientID = localStorage.getItem('clientID');
+  if (!storedClientID) {
+    // Если clientID отсутствует, перенаправляем на страницу регистрации
+    window.location.href = 'index.html';
+  }
+
+  // Установка clientID
+  setClientID(storedClientID);
+
+  // Подключение WebSocket и инициализация игры
+  const room = localStorage.getItem('currentRoom') || 'room1';
+  connectWebSocket(room, false, (event) => {
+    const data = JSON.parse(event.data);
+    console.log('Received WebSocket data:', data);
+
+    // Обновление состояния игры
+    setGameState(data);
+    updateCharacterCards(data);
+    updateAbilityCards(data.teamID, data);
+    drawBoard(data);
+    updatePhaseAndProgress(data);
+    updateBattleLog(data);
+
+    // Подключение обработчиков событий
+    setupEventListeners(data.teamID);
+  });
+</script>
+</body>
+</html>

@@ -1,9 +1,8 @@
-/* Существующие стили до #characterCards остаются без изменений */
 * {
     box-sizing: border-box;
 }
 
-body {
+#body-game {
     font-family: Arial, sans-serif;
     display: flex;
     background: linear-gradient(135deg, #f0f0f0 0%, #e0e0e0 100%);
@@ -484,3 +483,128 @@ body {
     padding: 5px;
     border-bottom: 1px solid #eee;
 }
+
+/* Новые стили для регистрации и выбора комнаты */
+.container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: linear-gradient(135deg, #1e1e2f, #2a2a40);
+}
+
+.hidden {
+    display: none;
+}
+/* Стили для экрана регистрации */
+body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: Arial, sans-serif;
+    overflow: hidden;
+}
+
+.registration-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    background: linear-gradient(135deg, #1e1e2f, #2a2a40);
+    position: relative;
+}
+
+/* Фоновое изображение или анимация */
+.registration-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: url('path/to/your/background-image.jpg') no-repeat center center/cover;
+    opacity: 0.2; /* Прозрачность фона */
+    z-index: 1;
+}
+
+#register-form {
+    background: rgba(42, 42, 64, 0.9); /* Полупрозрачный фон формы */
+    padding: 40px;
+    border-radius: 16px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    text-align: center;
+    color: white;
+    max-width: 400px;
+    width: 100%;
+    position: relative;
+    z-index: 2;
+}
+
+#register-form h2 {
+    margin-bottom: 20px;
+    font-size: 28px;
+    text-transform: uppercase;
+    color: #ff6b6b;
+    text-shadow: 0 0 10px rgba(255, 107, 107, 0.7);
+}
+
+#register-form input {
+    width: 100%;
+    padding: 12px;
+    margin: 15px 0;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+
+#register-form input::placeholder {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+#register-form input:focus {
+    background: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 0 10px rgba(255, 107, 107, 0.5);
+    outline: none;
+}
+
+#register-form button {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(135deg, #4CAF50, #388E3C);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    text-transform: uppercase;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s, background 0.2s, box-shadow 0.2s;
+}
+
+#register-form button:hover {
+    background: linear-gradient(135deg, #45a049, #357a38);
+    transform: scale(1.05);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.4);
+}
+
+/* Анимация для экрана регистрации */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+#register-form {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+

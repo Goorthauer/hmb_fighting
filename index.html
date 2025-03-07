@@ -3,107 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Battle Game</title>
+    <title>Battle Game - Registration</title>
     <link rel="stylesheet" href="styles.css">
-    <style>
-        #register-form, #roomSelection, #mainContainer { margin: 20px; }
-        .hidden { display: none; }
-    </style>
 </head>
 <body>
-<div id="register-form">
-    <h2>Register</h2>
-    <input type="text" id="name" placeholder="Name" required>
-    <input type="email" id="email" placeholder="Email" required>
-    <button onclick="register()">Register</button>
-</div>
-
-<div id="roomSelection" class="hidden">
-    <select id="roomSelect">
-        <option value="room1">Room 1</option>
-        <option value="room2">Room 2</option>
-        <option value="room3">Room 3</option>
-    </select>
-    <button id="joinRoomBtn">Join Room</button>
-</div>
-
-<div id="wrestleCards" class="hidden">
-    <div id="abilityCards"></div>
-</div>
-
-<div id="mainContainer" class="hidden">
-    <div id="gameContainer">
-        <div id="phaseContainer">
-            <span class="phase"></span>
-            <span class="progress">
-                <span class="team0"></span>
-                <span class="vs">vs</span>
-                <span class="team1"></span>
-            </span>
-            <button id="endTurnBtn">End Turn</button>
-        </div>
-        <canvas id="gameCanvas" width="1000" height="500"></canvas>
-        <div id="characterCards"></div>
-    </div>
-    <div id="rightPanel">
-        <div id="battleLog">
-            <h3>Battle Log</h3>
-            <div id="logEntries"></div>
-        </div>
+<!-- Экран регистрации -->
+<div class="registration-container">
+    <div id="register-form">
+        <h2>Register</h2>
+        <input type="text" id="name" placeholder="Name" required>
+        <input type="email" id="email" placeholder="Email" required>
+        <button onclick="register()">Register</button>
     </div>
 </div>
 
-<script type="module" src="js/main.js"></script>
 <script>
-    let websocketModule;
-
-    // Ждем загрузки модуля перед выполнением кода
-    import('./js/websocket.js').then(module => {
-        websocketModule = module;
-        window.websocketModule = module; // Для совместимости с существующим кодом
-
-        // Проверка clientID при загрузке страницы
-        const storedClientID = localStorage.getItem('clientID');
-        if (storedClientID) {
-            checkClientID(storedClientID);
+    // Проверка, зарегистрирован ли пользователь
+    function checkRegistration() {
+        const clientID = localStorage.getItem('clientID');
+        if (clientID) {
+            // Если clientID есть, перенаправляем на game.html
+            window.location.href = 'game.html';
         }
-    });
-
-    function checkClientID(clientID) {
-        console.log('Checking clientID:', clientID);
-        fetch('http://localhost:8080/check-client', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ clientID })
-        })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('ClientID check failed');
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.valid) {
-                    console.log('ClientID is valid:', clientID);
-                    document.getElementById('register-form').classList.add('hidden');
-                    document.getElementById('roomSelection').classList.remove('hidden');
-                    websocketModule.setClientID(clientID);
-                } else {
-                    throw new Error('ClientID is invalid');
-                }
-            })
-            .catch(err => {
-                console.error('ClientID check failed:', err);
-                localStorage.clear();
-                document.getElementById('register-form').classList.remove('hidden');
-                document.getElementById('roomSelection').classList.add('hidden');
-            });
     }
+
+    // Вызов проверки при загрузке страницы
+    checkRegistration();
 
     function register() {
         const name = document.getElementById('name').value;
         const email = document.getElementById('email').value;
-        console.log('Registering with:', { name, email });
         fetch('http://localhost:8080/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -118,10 +47,9 @@
             .then(data => {
                 const clientID = data.clientID;
                 localStorage.setItem('clientID', clientID);
-                console.log('Registered successfully, clientID:', clientID);
-                document.getElementById('register-form').classList.add('hidden');
-                document.getElementById('roomSelection').classList.remove('hidden');
-                websocketModule.setClientID(clientID);
+
+                // Переход на страницу игры
+                window.location.href = 'game.html';
             })
             .catch(err => console.error('Registration failed:', err));
     }
