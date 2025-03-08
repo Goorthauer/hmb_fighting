@@ -40,7 +40,7 @@
   import { setGameState } from './js/state.js';
   import { connectWebSocket, setClientID } from './js/websocket.js';
   import { updateCharacterCards, updateAbilityCards, updatePhaseAndProgress, updateBattleLog } from './js/renderUI.js';
-  import { drawBoard } from './js/renderCanvas.js';
+  import { preloadImages,drawBoard } from './js/renderCanvas.js';
   import { setupEventListeners } from './js/eventHandlers.js';
 
   // Проверка clientID при загрузке страницы
@@ -58,16 +58,23 @@
     const data = JSON.parse(event.data);
     console.log('Received WebSocket data:', data);
 
-    // Обновление состояния игры
-    setGameState(data);
-    updateCharacterCards(data);
-    updateAbilityCards(data.teamID, data);
-    drawBoard(data);
-    updatePhaseAndProgress(data);
-    updateBattleLog(data);
+    // Обновление состояния и рендеринг после загрузки изображений
+    preloadImages(data).then(() => {
+      setGameState(data);
+      updateCharacterCards(data);
+      updateAbilityCards(data.teamID, data);
+      drawBoard(data);
+      updatePhaseAndProgress(data);
+      updateBattleLog(data);
 
-    // Подключение обработчиков событий
-    setupEventListeners(data.teamID);
+      // Подключение обработчиков событий
+      setupEventListeners(data.teamID);
+    }).catch((err) => {
+      console.error('Failed to preload images:', err);
+      // Можно отрисовать без изображений, если загрузка не удалась
+      setGameState(data);
+      drawBoard(data);
+    });
   });
 </script>
 </body>

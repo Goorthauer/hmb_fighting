@@ -101,17 +101,17 @@ body, html {
     gap: 10px;
     max-width: none;
     min-height: 0;
-    align-items: center; /* Центрируем канвас */
+    align-items: center;
 }
 
 #gameCanvas {
-    width: 1000px; /* Фиксированная ширина из constants.js */
-    height: 500px; /* Фиксированная высота из constants.js */
+    width: 960px; /* 16 * 60px */
+    height: 540px; /* 9 * 60px */
     background: #fff;
     border: 3px solid #444;
     border-radius: 16px;
     box-shadow: 0 0 30px rgba(0, 0, 0, 0.7);
-    flex-shrink: 0; /* Не растягивается и не сжимается */
+    flex-shrink: 0;
 }
 
 #activeEffects {
@@ -121,7 +121,7 @@ body, html {
     max-height: 120px;
     overflow-y: auto;
     flex-shrink: 0;
-    width: 1000px; /* Выравниваем по ширине канваса */
+    width: 960px; /* Выравниваем по ширине канваса */
 }
 
 #activeEffects h3 {
@@ -223,7 +223,8 @@ body, html {
     height: 260px;
     flex-shrink: 0;
 }
-/* Добавим новые стили для карточек */
+
+/* Стили карточек остаются без изменений */
 .card {
     width: 180px;
     height: 240px;
@@ -353,19 +354,13 @@ body, html {
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow:
-            0 2px 6px rgba(0, 0, 0, 0.5),
-            inset 0 0 5px rgba(255, 0, 0, 0.6),
-            0 0 10px rgba(255, 0, 0, 0.4);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5), inset 0 0 5px rgba(255, 0, 0, 0.6), 0 0 10px rgba(255, 0, 0, 0.4);
     transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .card:hover .hp-diamond {
     transform: scale(1.1);
-    box-shadow:
-            0 2px 6px rgba(0, 0, 0, 0.5),
-            inset 0 0 5px rgba(255, 0, 0, 0.6),
-            0 0 15px rgba(255, 0, 0, 0.6);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5), inset 0 0 5px rgba(255, 0, 0, 0.6), 0 0 15px rgba(255, 0, 0, 0.6);
 }
 
 .card .hp {
@@ -374,24 +369,6 @@ body, html {
     font-weight: bold;
     font-family: 'Arial', sans-serif;
     text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
-}
-
-/* Новые анимации */
-@keyframes selectedPulse {
-    0% { box-shadow: 0 0 20px rgba(0, 255, 0, 0.8), inset 0 0 12px rgba(0, 255, 0, 0.5); }
-    50% { box-shadow: 0 0 30px rgba(0, 255, 0, 1), inset 0 0 15px rgba(0, 255, 0, 0.7); }
-    100% { box-shadow: 0 0 20px rgba(0, 255, 0, 0.8), inset 0 0 12px rgba(0, 255, 0, 0.5); }
-}
-
-@keyframes cardDraw {
-    0% { transform: scale(0.8) perspective(500px) rotateX(10deg); opacity: 0; }
-    100% { transform: scale(1) perspective(500px) rotateX(2deg); opacity: 1; }
-}
-
-@keyframes pulse {
-    0% { box-shadow: 0 0 20px rgba(255, 255, 0, 0.8), inset 0 0 12px rgba(255, 255, 0, 0.5); }
-    50% { box-shadow: 0 0 30px rgba(255, 255, 0, 1), inset 0 0 15px rgba(255, 255, 0, 0.7); }
-    100% { box-shadow: 0 0 20px rgba(255, 255, 0, 0.8), inset 0 0 12px rgba(255, 255, 0, 0.5); }
 }
 
 /* Кнопки */
@@ -427,6 +404,12 @@ button:disabled {
 }
 
 /* Анимации */
+@keyframes selectedPulse {
+    0% { box-shadow: 0 0 20px rgba(0, 255, 0, 0.8), inset 0 0 12px rgba(0, 255, 0, 0.5); }
+    50% { box-shadow: 0 0 30px rgba(0, 255, 0, 1), inset 0 0 15px rgba(0, 255, 0, 0.7); }
+    100% { box-shadow: 0 0 20px rgba(0, 255, 0, 0.8), inset 0 0 12px rgba(0, 255, 0, 0.5); }
+}
+
 @keyframes cardDraw {
     0% { transform: scale(0.8) perspective(500px) rotateX(10deg); opacity: 0; }
     100% { transform: scale(1) perspective(500px) rotateX(2deg); opacity: 1; }
@@ -473,11 +456,11 @@ button:disabled {
         height: 96px;
     }
     #gameCanvas {
-        width: 800px; /* Уменьшаем для средних экранов */
-        height: 400px;
+        width: 840px; /* 16 * 60 * 0.875 */
+        height: 472.5px; /* 9 * 60 * 0.875 */
     }
     #activeEffects {
-        width: 800px;
+        width: 840px;
     }
 }
 
@@ -504,11 +487,11 @@ button:disabled {
         height: 180px;
     }
     #gameCanvas {
-        width: 600px; /* Уменьшаем для маленьких экранов */
-        height: 300px;
+        width: 720px; /* 16 * 60 * 0.75 */
+        height: 405px; /* 9 * 60 * 0.75 */
     }
     #activeEffects {
-        width: 600px;
+        width: 720px;
     }
     #phaseContainer {
         padding: 6px;

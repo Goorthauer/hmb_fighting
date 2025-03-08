@@ -174,8 +174,14 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 		switch action.Type {
 		case "move":
-			if game.Phase != "move" || distance(currentChar.Position, action.Position) > currentChar.Stamina || game.Board[action.Position[0]][action.Position[1]] != -1 {
-				log.Printf("Invalid move by %s: phase=%s, distance=%d, stamina=%d, target=%d", clientID, game.Phase, distance(currentChar.Position, action.Position), currentChar.Stamina, game.Board[action.Position[0]][action.Position[1]])
+			// Проверяем границы нового поля (16x9)
+			if game.Phase != "move" ||
+				action.Position[0] < 0 || action.Position[0] >= 16 ||
+				action.Position[1] < 0 || action.Position[1] >= 9 ||
+				distance(currentChar.Position, action.Position) > currentChar.Stamina ||
+				game.Board[action.Position[0]][action.Position[1]] != -1 {
+				log.Printf("Invalid move by %s: phase=%s, position=(%d, %d), distance=%d, stamina=%d, target=%d",
+					clientID, game.Phase, action.Position[0], action.Position[1], distance(currentChar.Position, action.Position), currentChar.Stamina, game.Board[action.Position[0]][action.Position[1]])
 			} else {
 				game.Board[currentChar.Position[0]][currentChar.Position[1]] = -1
 				currentChar.Position = action.Position

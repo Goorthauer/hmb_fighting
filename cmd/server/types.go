@@ -75,7 +75,7 @@ type GameState struct {
 	Teams         [2]Team           `json:"teams"`
 	CurrentTurn   int               `json:"currentTurn"`
 	Phase         string            `json:"phase"`
-	Board         [20][10]int       `json:"board"`
+	Board         [16][9]int        `json:"board"` // Обновляем с [20][10] на [16][9]
 	TeamID        int               `json:"teamID"`
 	ClientID      string            `json:"clientID"`
 	GameSessionId string            `json:"gameSessionId"`
@@ -110,7 +110,7 @@ type Game struct {
 	Teams         [2]Team
 	CurrentTurn   int
 	Phase         string
-	Board         [20][10]int
+	Board         [16][9]int // Обновляем с [20][10] на [16][9]
 	GameSessionId string
 	WeaponsConfig map[string]Weapon
 	ShieldsConfig map[string]Shield

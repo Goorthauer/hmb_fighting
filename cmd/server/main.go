@@ -11,9 +11,11 @@ func main() {
 	http.Handle("/register", enableCORS(http.HandlerFunc(handleRegister)))
 	http.Handle("/check-client", enableCORS(http.HandlerFunc(handleCheckClient)))
 
-	// Обслуживание статических файлов
-	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
-	// Запуск сервера
+	// Статические файлы из ./static/
+	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("../../static"))))
+	// Корневые файлы (game.html, styles.css) из корня проекта
+	http.Handle("/", http.FileServer(http.Dir("..")))
+
 	log.Println("Starting server on :8080")
 	err := http.ListenAndServe(":8080", nil)
 	if err != nil {

@@ -34,7 +34,7 @@ function handleMouseDown(event, myTeam) {
     }
 
     const {gridX, gridY, x, y} = getGridPosition(event);
-    if (gridX >= 0 && gridX < 20 && gridY >= 0 && gridY < 10) {
+    if (gridX >= 0 && gridX < 16 && gridY >= 0 && gridY < 9) { // Обновлено с 20x10 на 16x9
         const charId = gameState.board[gridX][gridY];
         if (charId !== -1) {
             const char = findCharacter(gameState.teams, charId);
@@ -67,10 +67,9 @@ function handleMouseUp(event, myTeam) {
     const clientID = localStorage.getItem('clientID');
     const draggedChar = {...draggingCharacter};
 
-    if (gridX >= 0 && gridX < 20 && gridY >= 0 && gridY < 10) {
+    if (gridX >= 0 && gridX < 16 && gridY >= 0 && gridY < 9) { // Обновлено с 20x10 на 16x9
         const path = calculatePath(draggedChar.position[0], draggedChar.position[1], gridX, gridY);
 
-        // Проверяем валидность действия перед анимацией
         if (canMove(gridX, gridY)) {
             setMovePath(path);
             animateMove(draggedChar, path, () => {
@@ -98,12 +97,12 @@ function handleMouseUp(event, myTeam) {
             }, true);
         } else {
             setDraggingCharacter(null);
-            drawBoard(gameState); // Перерисовываем поле без изменений
+            drawBoard(gameState);
             return;
         }
     } else {
         setDraggingCharacter(null);
-        drawBoard(gameState); // Перерисовываем поле без изменений
+        drawBoard(gameState);
         return;
     }
     setDraggingCharacter(null);
@@ -114,7 +113,7 @@ function handleClick(event, myTeam) {
 
     const {gridX, gridY} = getGridPosition(event);
     const clientID = localStorage.getItem('clientID');
-    if (gridX >= 0 && gridX < 20 && gridY >= 0 && gridY < 10) {
+    if (gridX >= 0 && gridX < 16 && gridY >= 0 && gridY < 9) { // Обновлено с 20x10 на 16x9
         const charId = gameState.board[gridX][gridY];
         if (charId !== -1 && canAttackOrUseAbility(gridX, gridY, myTeam)) {
             const target = findCharacter(gameState.teams, charId);
@@ -136,7 +135,6 @@ function handleClick(event, myTeam) {
                         currentChar.abilities = currentChar.abilities.filter(a => a.name !== selectedAbility.name);
                         setSelectedAbility(null);
                     } else {
-
                         sendMessage(JSON.stringify({
                             type: 'attack',
                             clientID: clientID,

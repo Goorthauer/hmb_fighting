@@ -3,9 +3,8 @@ import { ctx, cellWidth, cellHeight } from './constants.js';
 import { findCharacter } from './utils.js';
 
 let movingCharacter = null;
-export const imagesCache = {}; // Кэш для изображений, теперь экспортируем
+export const imagesCache = {};
 
-// Пути к изображениям по умолчанию
 const DEFAULT_IMAGES = {
     character: '/static/characters/default.png',
     ability: '/static/abilities/default.jpg',
@@ -14,53 +13,75 @@ const DEFAULT_IMAGES = {
     icon: '/static/icons/default.png'
 };
 
-// Загрузка изображения с кэшированием и запасным вариантом
-function loadImage(url, defaultUrl) {
-    if (!url || url.trim() === '') {
-        console.warn(`Image URL is empty or invalid, using default: ${defaultUrl}`);
-        url = defaultUrl;
-    }
-    if (!imagesCache[url]) {
-        const img = new Image();
-        img.src = url;
-        img.onerror = () => {
-            console.warn(`Failed to load image: ${url}, falling back to ${defaultUrl}`);
-            img.src = defaultUrl;
-        };
-        imagesCache[url] = img;
-    }
-    return imagesCache[url];
-}
-
-// Предварительная загрузка всех изображений из gameState
 export function preloadImages(data) {
     if (!data || !data.teams || !data.weaponsConfig || !data.shieldsConfig || !data.teamsConfig) {
         console.error('Invalid data for preloading images:', data);
-        return;
+        return Promise.reject('Invalid data');
+    }
+    console.log('Preloading images with data:', data);
+
+    const imagePromises = [];
+
+    function loadImage(url, defaultUrl) {
+        if (!url || url.trim() === '') {
+            console.warn(`Image URL is empty or invalid, using default: ${defaultUrl}`);
+            url = defaultUrl;
+        }
+        if (!imagesCache[url]) {
+            const img = new Image();
+            const promise = new Promise((resolve, reject) => {
+                img.onload = () => {
+                    console.log(`Image loaded: ${url}`);
+                    resolve(img);
+                };
+                img.onerror = () => {
+                    console.warn(`Failed to load image: ${url}, falling back to ${defaultUrl}`);
+                    if (url !== defaultUrl) {
+                        img.src = defaultUrl;
+                        img.onload = () => {
+                            console.log(`Default image loaded: ${defaultUrl}`);
+                            resolve(img);
+                        };
+                        img.onerror = () => {
+                            console.error(`Failed to load default image: ${defaultUrl}`);
+                            reject(new Error(`Failed to load default image: ${defaultUrl}`));
+                        };
+                    } else {
+                        reject(new Error(`Failed to load image: ${url}`));
+                    }
+                };
+            });
+            img.src = url;
+            imagesCache[url] = img;
+            return promise;
+        }
+        return Promise.resolve(imagesCache[url]);
     }
 
-    data.teamsConfig.forEach((teamConfig, index) => {
-        loadImage(teamConfig.iconURL, DEFAULT_IMAGES.icon);
+    // Загружаем только иконки команд и другие ресурсы, без char.imageURL
+    data.teamsConfig.forEach((teamConfig) => {
+        imagePromises.push(loadImage(teamConfig.iconURL, DEFAULT_IMAGES.icon));
     });
-
-    data.teams.forEach((team, teamIndex) => {
-        team.characters.forEach((char, charIndex) => {
-            loadImage(char.imageURL, DEFAULT_IMAGES.character);
-            char.abilities.forEach((ability, abilityIndex) => {
-                loadImage(ability.imageURL, DEFAULT_IMAGES.ability);
+    data.teams.forEach((team) => {
+        team.characters.forEach((char) => {
+            char.abilities.forEach((ability) => {
+                imagePromises.push(loadImage(ability.imageURL, DEFAULT_IMAGES.ability));
             });
         });
     });
-
-    Object.entries(data.weaponsConfig).forEach(([key, weapon]) => {
-        loadImage(weapon.imageURL, DEFAULT_IMAGES.weapon);
+    Object.entries(data.weaponsConfig).forEach(([_, weapon]) => {
+        imagePromises.push(loadImage(weapon.imageURL, DEFAULT_IMAGES.weapon));
+    });
+    Object.entries(data.shieldsConfig).forEach(([_, shield]) => {
+        imagePromises.push(loadImage(shield.imageURL, DEFAULT_IMAGES.shield));
     });
 
-    Object.entries(data.shieldsConfig).forEach(([key, shield]) => {
-        loadImage(shield.imageURL, DEFAULT_IMAGES.shield);
-    });
-
+    return Promise.all(imagePromises)
+        .then(() => console.log('All images preloaded successfully'))
+        .catch((err) => console.error('Error preloading images:', err));
 }
+
+// Убираем отдельную функцию loadImage, так как она используется только в preloadImages
 
 export function drawBoard(data) {
     if (!ctx) {
@@ -69,19 +90,20 @@ export function drawBoard(data) {
     }
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-    for (let x = 0; x < 20; x++) {
-        for (let y = 0; y < 10; y++) {
+    // Отрисовка сетки
+    for (let x = 0; x < 16; x++) {
+        for (let y = 0; y < 9; y++) {
             ctx.strokeStyle = '#ccc';
             ctx.strokeRect(x * cellWidth, y * cellHeight, cellWidth, cellHeight);
         }
     }
 
-    if (!data || !data.teams || !Array.isArray(data.teams) || !data.board) {
+    if (!data || !data.teams || !Array.isArray(data.teams) || !data.board || !data.teamsConfig) {
         console.error('Invalid data in drawBoard:', data);
         return;
     }
 
-    // Подсветка зон при перетаскивании (без изменений)
+    // Логика перетаскивания персонажа
     if (draggingCharacter) {
         const startX = draggingCharacter.position[0];
         const startY = draggingCharacter.position[1];
@@ -92,8 +114,8 @@ export function drawBoard(data) {
         const gridY = Math.floor(dragOffsetY / cellHeight);
 
         if (data.phase === 'move') {
-            for (let x = Math.max(0, startX - stamina); x <= Math.min(19, startX + stamina); x++) {
-                for (let y = Math.max(0, startY - stamina); y <= Math.min(9, startY + stamina); y++) {
+            for (let x = Math.max(0, startX - stamina); x <= Math.min(15, startX + stamina); x++) {
+                for (let y = Math.max(0, startY - stamina); y <= Math.min(8, startY + stamina); y++) {
                     const dist = Math.abs(x - startX) + Math.abs(y - startY);
                     if (dist <= stamina && data.board[x][y] === -1) {
                         ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
@@ -103,14 +125,14 @@ export function drawBoard(data) {
                     }
                 }
             }
-            if (gridX >= 0 && gridX < 20 && gridY >= 0 && gridY < 10 && data.board[gridX][gridY] === -1) {
+            if (gridX >= 0 && gridX < 16 && gridY >= 0 && gridY < 9 && data.board[gridX][gridY] === -1) {
                 drawArrow(startX * cellWidth + cellWidth / 2, startY * cellHeight + cellHeight / 2, gridX * cellWidth + cellWidth / 2, gridY * cellHeight + cellHeight / 2, 'blue');
             }
         } else if (data.phase === 'action') {
             if (selectedAbility) {
                 const abilityRange = selectedAbility.range || 1;
-                for (let x = Math.max(0, startX - abilityRange); x <= Math.min(19, startX + abilityRange); x++) {
-                    for (let y = Math.max(0, startY - abilityRange); y <= Math.min(9, startY + abilityRange); y++) {
+                for (let x = Math.max(0, startX - abilityRange); x <= Math.min(15, startX + abilityRange); x++) {
+                    for (let y = Math.max(0, startY - abilityRange); y <= Math.min(8, startY + abilityRange); y++) {
                         const dist = Math.max(Math.abs(x - startX), Math.abs(y - startY));
                         if (dist <= abilityRange && data.board[x][y] !== -1) {
                             const target = findCharacter(data.teams, data.board[x][y]);
@@ -124,8 +146,8 @@ export function drawBoard(data) {
                     }
                 }
             } else {
-                for (let x = Math.max(0, startX - weaponRange); x <= Math.min(19, startX + weaponRange); x++) {
-                    for (let y = Math.max(0, startY - weaponRange); y <= Math.min(9, startY + weaponRange); y++) {
+                for (let x = Math.max(0, startX - weaponRange); x <= Math.min(15, startX + weaponRange); x++) {
+                    for (let y = Math.max(0, startY - weaponRange); y <= Math.min(8, startY + weaponRange); y++) {
                         const dist = Math.max(Math.abs(x - startX), Math.abs(y - startY));
                         const isValidRange = (weapon && weapon.isTwoHanded && dist === weaponRange) || (!weapon || !weapon.isTwoHanded && dist <= weaponRange);
                         if (isValidRange && data.board[x][y] !== -1) {
@@ -140,7 +162,7 @@ export function drawBoard(data) {
                     }
                 }
             }
-            if (gridX >= 0 && gridX < 20 && gridY >= 0 && gridY < 10 && data.board[gridX][gridY] !== -1) {
+            if (gridX >= 0 && gridX < 16 && gridY >= 0 && gridY < 9 && data.board[gridX][gridY] !== -1) {
                 const target = findCharacter(data.teams, data.board[gridX][gridY]);
                 if (target && target.team !== draggingCharacter.team) {
                     const attackDist = Math.max(Math.abs(gridX - startX), Math.abs(gridY - startY));
@@ -152,9 +174,10 @@ export function drawBoard(data) {
             }
         }
     }
-    // Рисуем персонажей
-    for (let x = 0; x < 20; x++) {
-        for (let y = 0; y < 10; y++) {
+
+    // Отрисовка персонажей на поле с иконками команд
+    for (let x = 0; x < 16; x++) {
+        for (let y = 0; y < 9; y++) {
             const charId = data.board[x][y];
             if (charId !== -1 && (!movingCharacter || movingCharacter.id !== charId)) {
                 const char = findCharacter(data.teams, charId);
@@ -162,47 +185,33 @@ export function drawBoard(data) {
                     console.warn(`Character with ID ${charId} not found in teams`);
                     continue;
                 }
-
-                // Запасной вариант: рисуем прямоугольник
-                ctx.fillStyle = char.team === 0 ? '#800080' : '#FFD700';
-                ctx.fillRect(x * cellWidth + 5, y * cellHeight + 5, cellWidth - 10, cellHeight - 10);
-
-                // Иконка команды
-                const teamIcon = imagesCache[data.teamsConfig[char.team].iconURL] || imagesCache[DEFAULT_IMAGES.icon];
-                if (teamIcon && teamIcon.complete && teamIcon.naturalWidth !== 0) {
-                    ctx.drawImage(teamIcon, x * cellWidth + 2, y * cellHeight + 2, cellWidth - 4, cellHeight - 4);
-                } else {
-                    console.warn(`Team icon for ${char.name} is not valid:`, teamIcon);
-                }
-
-                // Изображение персонажа
-                const charImage = imagesCache[char.imageURL] || imagesCache[DEFAULT_IMAGES.character];
+                const teamIconURL = data.teamsConfig[char.team].iconURL;
+                console.log(`Drawing ${char.name} with team iconURL: ${teamIconURL}`);
+                const charImage = imagesCache[teamIconURL] || imagesCache[DEFAULT_IMAGES.icon];
                 if (charImage && charImage.complete && charImage.naturalWidth !== 0) {
-                    ctx.drawImage(charImage, x * cellWidth, y * cellHeight, cellWidth, cellHeight);
+                    // Отрисовка иконки в центре клетки (40x40px)
+                    const iconSize = 40;
+                    const offsetX = (cellWidth - iconSize) / 2;
+                    const offsetY = (cellHeight - 15 - iconSize) / 2;
+                    ctx.drawImage(charImage, x * cellWidth + offsetX, y * cellHeight + offsetY, iconSize, iconSize);
                 } else {
-                    console.warn(`Character image for ${char.name} is not valid:`, charImage);
+                    console.warn(`Team icon for ${char.name} is not valid:`, charImage);
                 }
+                // Отрисовка рамки с именем (нижние 15px клетки)
+                ctx.fillStyle = char.team === 0 ? 'rgba(128, 0, 128, 0.8)' : 'rgba(255, 215, 0, 0.8)';
+                ctx.fillRect(x * cellWidth, y * cellHeight + cellHeight - 15, cellWidth, 15);
+                ctx.strokeStyle = char.team === 0 ? '#800080' : '#ffd700';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(x * cellWidth, y * cellHeight + cellHeight - 15, cellWidth, 15);
 
-                // Оружие и щит
-                const weapon = data.weaponsConfig[char.weapon];
-                if (weapon && weapon.imageURL) {
-                    const weaponImage = imagesCache[weapon.imageURL] || imagesCache[DEFAULT_IMAGES.weapon];
-                    if (weaponImage && weaponImage.complete && weaponImage.naturalWidth !== 0) {
-                        ctx.drawImage(weaponImage, x * cellWidth + cellWidth - 15, y * cellHeight, 15, 15);
-                    }
-                }
-                const shield = data.shieldsConfig[char.shield];
-                if (shield && shield.imageURL) {
-                    const shieldImage = imagesCache[shield.imageURL] || imagesCache[DEFAULT_IMAGES.shield];
-                    if (shieldImage && shieldImage.complete && shieldImage.naturalWidth !== 0) {
-                        ctx.drawImage(shieldImage, x * cellWidth, y * cellHeight + cellHeight - 15, 15, 15);
-                    }
-                }
-
+                // Текст имени
                 ctx.fillStyle = '#fff';
                 ctx.font = '12px Arial';
-                ctx.fillText(`${char.name} (${char.hp})`, x * cellWidth + 5, y * cellHeight + 20);
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(char.name, x * cellWidth + cellWidth / 2, y * cellHeight + cellHeight - 7.5);
 
+                // Подсветка текущего хода
                 if (char.id === data.currentTurn) {
                     ctx.strokeStyle = 'yellow';
                     ctx.lineWidth = 3;
@@ -213,40 +222,48 @@ export function drawBoard(data) {
         }
     }
 
-    // Рисуем движущегося персонажа
+    // Отрисовка движущегося персонажа
     if (movingCharacter) {
         const char = movingCharacter;
-        ctx.fillStyle = char.team === 0 ? '#800080' : '#FFD700';
-        ctx.fillRect(char.currentX + 5, char.currentY + 5, cellWidth - 10, cellHeight - 10);
-
-        const teamIcon = imagesCache[data.teamsConfig[char.team].iconURL] || imagesCache[DEFAULT_IMAGES.icon];
-        if (teamIcon && teamIcon.complete) {
-            ctx.drawImage(teamIcon, char.currentX + 2, char.currentY + 2, cellWidth - 4, cellHeight - 4);
+        const teamIconURL = data.teamsConfig[char.team].iconURL;
+        const charImage = imagesCache[teamIconURL] || imagesCache[DEFAULT_IMAGES.icon];
+        if (charImage && charImage.complete && charImage.naturalWidth !== 0) {
+            const iconSize = 40;
+            const offsetX = (cellWidth - iconSize) / 2;
+            const offsetY = (cellHeight - 15 - iconSize) / 2;
+            ctx.drawImage(charImage, char.currentX + offsetX, char.currentY + offsetY, iconSize, iconSize);
         }
-        const charImage = imagesCache[char.imageURL] || imagesCache[DEFAULT_IMAGES.character];
-        if (charImage && charImage.complete) {
-            ctx.drawImage(charImage, char.currentX, char.currentY, cellWidth, cellHeight);
-        }
+        ctx.fillStyle = char.team === 0 ? 'rgba(128, 0, 128, 0.8)' : 'rgba(255, 215, 0, 0.8)';
+        ctx.fillRect(char.currentX, char.currentY + cellHeight - 15, cellWidth, 15);
+        ctx.strokeStyle = char.team === 0 ? '#800080' : '#ffd700';
+        ctx.strokeRect(char.currentX, char.currentY + cellHeight - 15, cellWidth, 15);
         ctx.fillStyle = '#fff';
-        ctx.fillText(`${char.name} (${char.hp})`, char.currentX + 5, char.currentY + 20);
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(char.name, char.currentX + cellWidth / 2, char.currentY + cellHeight - 7.5);
     }
 
-    // Рисуем перетаскиваемого персонажа
+    // Отрисовка перетаскиваемого персонажа
     if (draggingCharacter) {
         const char = draggingCharacter;
-        ctx.fillStyle = char.team === 0 ? '#800080' : '#FFD700';
-        ctx.fillRect(dragOffsetX - cellWidth / 2 + 5, dragOffsetY - cellHeight / 2 + 5, cellWidth - 10, cellHeight - 10);
-
-        const teamIcon = imagesCache[data.teamsConfig[char.team].iconURL] || imagesCache[DEFAULT_IMAGES.icon];
-        if (teamIcon && teamIcon.complete) {
-            ctx.drawImage(teamIcon, dragOffsetX - cellWidth / 2 + 2, dragOffsetY - cellHeight / 2 + 2, cellWidth - 4, cellHeight - 4);
+        const teamIconURL = data.teamsConfig[char.team].iconURL;
+        const charImage = imagesCache[teamIconURL] || imagesCache[DEFAULT_IMAGES.icon];
+        if (charImage && charImage.complete && charImage.naturalWidth !== 0) {
+            const iconSize = 40;
+            const offsetX = (cellWidth - iconSize) / 2;
+            const offsetY = (cellHeight - 15 - iconSize) / 2;
+            ctx.drawImage(charImage, dragOffsetX - cellWidth / 2 + offsetX, dragOffsetY - cellHeight / 2 + offsetY, iconSize, iconSize);
         }
-        const charImage = imagesCache[char.imageURL] || imagesCache[DEFAULT_IMAGES.character];
-        if (charImage && charImage.complete) {
-            ctx.drawImage(charImage, dragOffsetX - cellWidth / 2, dragOffsetY - cellHeight / 2, cellWidth, cellHeight);
-        }
+        ctx.fillStyle = char.team === 0 ? 'rgba(128, 0, 128, 0.8)' : 'rgba(255, 215, 0, 0.8)';
+        ctx.fillRect(dragOffsetX - cellWidth / 2, dragOffsetY - cellHeight / 2 + cellHeight - 15, cellWidth, 15);
+        ctx.strokeStyle = char.team === 0 ? '#800080' : '#ffd700';
+        ctx.strokeRect(dragOffsetX - cellWidth / 2, dragOffsetY - cellHeight / 2 + cellHeight - 15, cellWidth, 15);
         ctx.fillStyle = '#fff';
-        ctx.fillText(`${char.name} (${char.hp})`, dragOffsetX - cellWidth / 2 + 5, dragOffsetY - cellHeight / 2 + 20);
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(char.name, dragOffsetX, dragOffsetY - cellHeight / 2 + cellHeight - 7.5);
     }
 }
 
@@ -259,7 +276,7 @@ function drawArrow(fromX, fromY, toX, toY, color = 'blue', animate = false) {
     ctx.stroke();
 
     const angle = Math.atan2(toY - fromY, toX - fromX);
-    const arrowSize = 10;
+    const arrowSize = 12;
     ctx.beginPath();
     ctx.moveTo(toX, toY);
     ctx.lineTo(toX - arrowSize * Math.cos(angle - Math.PI / 6), toY - arrowSize * Math.sin(angle - Math.PI / 6));
@@ -282,7 +299,7 @@ function drawArrow(fromX, fromY, toX, toY, color = 'blue', animate = false) {
 export function animateMove(character, path, callback, isAttack = false) {
     movingCharacter = { ...character, currentX: path[0].x * cellWidth, currentY: path[0].y * cellHeight };
     let step = 0;
-    const speed = 5;
+    const speed = 6;
     let returning = false;
 
     function animate() {

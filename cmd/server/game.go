@@ -31,8 +31,8 @@ func initGame() *Game {
 	}
 
 	teamsConfig := [2]TeamConfig{
-		{IconURL: "./static/icons/default.png"},
-		{IconURL: "./static/icons/default.png"},
+		{IconURL: "./static/icons/team0.png"},
+		{IconURL: "./static/icons/team1.png"},
 	}
 
 	game := &Game{
@@ -43,23 +43,23 @@ func initGame() *Game {
 		TeamsConfig:   teamsConfig,
 		Teams: [2]Team{
 			{Characters: []Character{
-				{ID: 1, Name: "Vasya", Team: 0, HP: 100, Stamina: 5, AttackMin: 10, AttackMax: 20, Defense: 5, Initiative: 8, Weapon: "falchion", Shield: "buckler", Height: 175, Weight: 80, Position: [2]int{2, 2}, Abilities: []Ability{{Name: "Takedown", Type: "wrestle", Description: "Attempts to take down the opponent", Range: 1, ImageURL: "./static/abilities/default.jpg"}}, ImageURL: "./static/characters/default.png"},
-				{ID: 2, Name: "Petya", Team: 0, HP: 100, Stamina: 6, AttackMin: 8, AttackMax: 18, Defense: 6, Initiative: 7, Weapon: "axe", Shield: "shield", Height: 180, Weight: 90, Position: [2]int{2, 3}, Abilities: []Ability{{Name: "Throw", Type: "wrestle", Description: "Throws the opponent", Range: 1, ImageURL: "./static/abilities/default.jpg"}}, ImageURL: "./static/characters/default.png"},
-				{ID: 3, Name: "Alexei", Team: 0, HP: 100, Stamina: 7, AttackMin: 12, AttackMax: 22, Defense: 4, Initiative: 9, Weapon: "two_handed_sword", Shield: "", Height: 185, Weight: 95, Position: [2]int{7, 7}, Abilities: []Ability{{Name: "Pin", Type: "wrestle", Description: "Pins the opponent down", Range: 1, ImageURL: "./static/abilities/default.jpg"}}, ImageURL: "./static/characters/default.png"},
-				{ID: 4, Name: "Misha", Team: 0, HP: 100, Stamina: 5, AttackMin: 9, AttackMax: 19, Defense: 5, Initiative: 6, Weapon: "spear", Shield: "buckler", Height: 170, Weight: 75, Position: [2]int{3, 4}, Abilities: []Ability{{Name: "Grapple", Type: "wrestle", Description: "Grapples the opponent", Range: 1, ImageURL: "./static/abilities/default.jpg"}}, ImageURL: "./static/characters/default.png"},
-				{ID: 5, Name: "Sasha", Team: 0, HP: 100, Stamina: 6, AttackMin: 11, AttackMax: 21, Defense: 7, Initiative: 8, Weapon: "dagger", Shield: "shield", Height: 178, Weight: 85, Position: [2]int{4, 5}, Abilities: []Ability{{Name: "Lock", Type: "wrestle", Description: "Locks the opponent", Range: 1, ImageURL: "./static/abilities/default.jpg"}}, ImageURL: "./static/characters/default.png"},
+				{ID: 1, Name: "Vasya", Team: 0, HP: 10, Stamina: 5, AttackMin: 10, AttackMax: 20, Defense: 5, Initiative: 8, Weapon: "falchion", Shield: "buckler", Height: 175, Weight: 80, Position: [2]int{1, 0}, Abilities: []Ability{{Name: "Takedown", Type: "wrestle", Description: "Attempts to take down the opponent", Range: 1, ImageURL: "./static/abilities/default.jpg"}}, ImageURL: "./static/characters/sashya.png"},
+				{ID: 2, Name: "Petya", Team: 0, HP: 10, Stamina: 6, AttackMin: 8, AttackMax: 18, Defense: 6, Initiative: 7, Weapon: "axe", Shield: "shield", Height: 180, Weight: 90, Position: [2]int{1, 2}, Abilities: []Ability{{Name: "Throw", Type: "wrestle", Description: "Throws the opponent", Range: 1, ImageURL: "./static/abilities/default.jpg"}}, ImageURL: "./static/characters/suslik.png"},
+				{ID: 3, Name: "Alexei", Team: 0, HP: 10, Stamina: 7, AttackMin: 12, AttackMax: 22, Defense: 4, Initiative: 9, Weapon: "two_handed_sword", Shield: "", Height: 185, Weight: 95, Position: [2]int{4, 4}, Abilities: []Ability{{Name: "Pin", Type: "wrestle", Description: "Pins the opponent down", Range: 1, ImageURL: "./static/abilities/default.jpg"}}, ImageURL: "./static/characters/benya.png"},
+				{ID: 4, Name: "Misha", Team: 0, HP: 10, Stamina: 5, AttackMin: 9, AttackMax: 19, Defense: 5, Initiative: 6, Weapon: "spear", Shield: "buckler", Height: 170, Weight: 75, Position: [2]int{1, 6}, Abilities: []Ability{{Name: "Grapple", Type: "wrestle", Description: "Grapples the opponent", Range: 1, ImageURL: "./static/abilities/default.jpg"}}, ImageURL: "./static/characters/bear_coub.png"},
+				{ID: 5, Name: "Sasha", Team: 0, HP: 10, Stamina: 6, AttackMin: 11, AttackMax: 21, Defense: 7, Initiative: 8, Weapon: "dagger", Shield: "shield", Height: 178, Weight: 85, Position: [2]int{1, 8}, Abilities: []Ability{{Name: "Lock", Type: "wrestle", Description: "Locks the opponent", Range: 1, ImageURL: "./static/abilities/default.jpg"}}, ImageURL: "./static/characters/kolya.png"},
 			}},
 			{Characters: []Character{
-				{ID: 6, Name: "Igor", Team: 1, HP: 100, Stamina: 5, AttackMin: 9, AttackMax: 19, Defense: 5, Initiative: 6, Weapon: "falchion", Shield: "buckler", Height: 172, Weight: 78, Position: [2]int{17, 2}, Abilities: []Ability{{Name: "Takedown", Type: "wrestle", Description: "Attempts to take down the opponent", Range: 1, ImageURL: "./static/abilities/default.jpg"}}, ImageURL: "./static/characters/default.png"},
-				{ID: 7, Name: "Dima", Team: 1, HP: 100, Stamina: 6, AttackMin: 11, AttackMax: 21, Defense: 7, Initiative: 8, Weapon: "two_handed_halberd", Shield: "", Height: 182, Weight: 92, Position: [2]int{17, 3}, Abilities: []Ability{{Name: "Throw", Type: "wrestle", Description: "Throws the opponent", Range: 1, ImageURL: "./static/abilities/default.jpg"}}, ImageURL: "./static/characters/default.png"},
-				{ID: 8, Name: "Kolya", Team: 1, HP: 100, Stamina: 5, AttackMin: 10, AttackMax: 20, Defense: 6, Initiative: 7, Weapon: "axe", Shield: "shield", Height: 176, Weight: 83, Position: [2]int{16, 4}, Abilities: []Ability{{Name: "Pin", Type: "wrestle", Description: "Pins the opponent down", Range: 1, ImageURL: "./static/abilities/default.jpg"}}, ImageURL: "./static/characters/default.png"},
-				{ID: 9, Name: "Roma", Team: 1, HP: 100, Stamina: 7, AttackMin: 12, AttackMax: 22, Defense: 4, Initiative: 9, Weapon: "sword", Shield: "buckler", Height: 188, Weight: 98, Position: [2]int{15, 5}, Abilities: []Ability{{Name: "Grapple", Type: "wrestle", Description: "Grapples the opponent", Range: 1, ImageURL: "./static/abilities/default.jpg"}}, ImageURL: "./static/characters/default.png"},
-				{ID: 10, Name: "Zhenya", Team: 1, HP: 100, Stamina: 6, AttackMin: 8, AttackMax: 18, Defense: 5, Initiative: 6, Weapon: "dagger", Shield: "shield", Height: 174, Weight: 80, Position: [2]int{14, 6}, Abilities: []Ability{{Name: "Lock", Type: "wrestle", Description: "Locks the opponent", Range: 1, ImageURL: "./static/abilities/default.jpg"}}, ImageURL: "./static/characters/default.png"},
+				{ID: 6, Name: "Igor", Team: 1, HP: 10, Stamina: 5, AttackMin: 9, AttackMax: 19, Defense: 5, Initiative: 6, Weapon: "falchion", Shield: "buckler", Height: 172, Weight: 78, Position: [2]int{14, 0}, Abilities: []Ability{{Name: "Takedown", Type: "wrestle", Description: "Attempts to take down the opponent", Range: 1, ImageURL: "./static/abilities/default.jpg"}}, ImageURL: "./static/characters/sasha.png"},
+				{ID: 7, Name: "Dima", Team: 1, HP: 10, Stamina: 6, AttackMin: 11, AttackMax: 21, Defense: 7, Initiative: 8, Weapon: "two_handed_halberd", Shield: "", Height: 182, Weight: 92, Position: [2]int{14, 2}, Abilities: []Ability{{Name: "Throw", Type: "wrestle", Description: "Throws the opponent", Range: 1, ImageURL: "./static/abilities/default.jpg"}}, ImageURL: "./static/characters/baba.png"},
+				{ID: 8, Name: "Kolya", Team: 1, HP: 10, Stamina: 5, AttackMin: 10, AttackMax: 20, Defense: 6, Initiative: 7, Weapon: "axe", Shield: "shield", Height: 176, Weight: 83, Position: [2]int{12, 4}, Abilities: []Ability{{Name: "Pin", Type: "wrestle", Description: "Pins the opponent down", Range: 1, ImageURL: "./static/abilities/default.jpg"}}, ImageURL: "./static/characters/default.png"},
+				{ID: 9, Name: "Roma", Team: 1, HP: 10, Stamina: 7, AttackMin: 12, AttackMax: 22, Defense: 4, Initiative: 9, Weapon: "sword", Shield: "buckler", Height: 188, Weight: 98, Position: [2]int{14, 6}, Abilities: []Ability{{Name: "Grapple", Type: "wrestle", Description: "Grapples the opponent", Range: 1, ImageURL: "./static/abilities/default.jpg"}}, ImageURL: "./static/characters/default.png"},
+				{ID: 10, Name: "Zhenya", Team: 1, HP: 10, Stamina: 6, AttackMin: 8, AttackMax: 18, Defense: 5, Initiative: 6, Weapon: "dagger", Shield: "shield", Height: 174, Weight: 80, Position: [2]int{14, 8}, Abilities: []Ability{{Name: "Lock", Type: "wrestle", Description: "Locks the opponent", Range: 1, ImageURL: "./static/abilities/default.jpg"}}, ImageURL: "./static/characters/default.png"},
 			}},
 		},
 		CurrentTurn: 3,
 		Phase:       "move",
-		Board:       [20][10]int{},
+		Board:       [16][9]int{}, // Обновляем размер поля с [20][10] на [16][9]
 	}
 
 	for i := range game.Board {
@@ -72,7 +72,12 @@ func initGame() *Game {
 			if shield, ok := game.ShieldsConfig[char.Shield]; ok {
 				char.Defense += shield.DefenseBonus
 			}
-			game.Board[char.Position[0]][char.Position[1]] = char.ID
+			// Проверяем, что позиция находится в пределах нового поля
+			if char.Position[0] >= 0 && char.Position[0] < 16 && char.Position[1] >= 0 && char.Position[1] < 9 {
+				game.Board[char.Position[0]][char.Position[1]] = char.ID
+			} else {
+				log.Printf("Warning: Character %s position (%d, %d) is out of bounds for new 16x9 board", char.Name, char.Position[0], char.Position[1])
+			}
 		}
 	}
 	return game
@@ -97,7 +102,7 @@ func countSurroundingEnemies(game *Game, char *Character) int {
 				continue
 			}
 			x, y := char.Position[0]+dx, char.Position[1]+dy
-			if x >= 0 && x < 20 && y >= 0 && y < 10 && game.Board[x][y] != -1 {
+			if x >= 0 && x < 16 && y >= 0 && y < 9 && game.Board[x][y] != -1 { // Обновляем границы с 20x10 на 16x9
 				target := findCharacter(game, game.Board[x][y])
 				if target != nil && target.Team != char.Team && target.HP > 0 {
 					count++
