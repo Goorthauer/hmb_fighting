@@ -63,6 +63,7 @@ export function updatePhaseAndProgress(data) {
         setTimeout(() => phaseContainer.style.display = 'flex', 0);
     }
 }
+
 export function updateCharacterCards(data) {
     if (isUpdatingCards) return;
     isUpdatingCards = true;
@@ -84,7 +85,7 @@ export function updateCharacterCards(data) {
     if (data.teams && Array.isArray(data.teams)) {
         data.teams.forEach(team => {
             team.characters.forEach(char => {
-                if (char.hp > 0) allChars.push(char);
+                allChars.push(char); // Убираем фильтр hp > 0, добавляем всех персонажей
             });
         });
     }
@@ -104,6 +105,7 @@ export function updateCharacterCards(data) {
     saveTurnState(gameSessionId);
     isUpdatingCards = false;
 }
+
 function renderCards(container, chars, data) {
     container.innerHTML = ''; // Очищаем контейнер
     chars.forEach(char => {
@@ -128,7 +130,7 @@ function renderCards(container, chars, data) {
             </div>
         `;
         card.addEventListener('click', () => {
-            if (char.hp > 0) setSelectedCharacter(char);
+            if (char.hp > 0) setSelectedCharacter(char); // Выбор только живых персонажей
             updateCharacterCards(data);
         });
         container.appendChild(card);
@@ -176,7 +178,6 @@ export function updateBattleLog(data) {
         previousState = { ...data, teams: data.teams.map(team => ({ ...team, characters: [...team.characters] })) };
         return;
     }
-
 
     const prevChar = findCharacter(previousState.teams, previousState.currentTurn);
     const currChar = findCharacter(data.teams, data.currentTurn);
