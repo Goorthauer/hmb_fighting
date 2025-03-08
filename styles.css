@@ -53,8 +53,6 @@ body, html {
     gap: 8px;
 }
 
-
-
 /* Стили для карточек способностей (уменьшенные в 2 раза) */
 .ability-card {
     width: 90px; /* Уменьшено в 2 раза */
@@ -471,13 +469,36 @@ body, html {
     background: rgba(255, 255, 255, 0.1);
     border-radius: 12px;
     overflow-x: auto;
-    overflow-y: visible;
+    overflow-y: hidden;
     white-space: nowrap;
     height: 260px;
     flex-shrink: 0;
+    scrollbar-width: thin; /* Для Firefox */
+    scrollbar-color: #b8860b rgba(255, 255, 255, 0.1); /* Для Firefox */
+}
+
+/* Стилизация полосы прокрутки для WebKit (Chrome, Safari) */
+#characterCards::-webkit-scrollbar {
+    height: 8px;
+}
+
+#characterCards::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+#characterCards::-webkit-scrollbar-thumb {
+    background: #b8860b;
+    border-radius: 4px;
+}
+
+#characterCards::-webkit-scrollbar-thumb:hover {
+    background: #ffd700;
 }
 
 /* Стили карточек остаются без изменений */
+
+/* Стили для карточки персонажа */
 .card {
     width: 180px;
     height: 240px;
@@ -546,7 +567,7 @@ body, html {
     padding: 4px 0;
     background: rgba(0, 0, 0, 0.5);
     color: #fff;
-    font-size: 12px;
+    font-size: 8px;
     font-weight: bold;
     text-align: center;
     text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);

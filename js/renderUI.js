@@ -108,11 +108,18 @@ export function updateCharacterCards(data) {
 
 function renderCards(container, chars, data) {
     container.innerHTML = ''; // Очищаем контейнер
-    chars.forEach(char => {
+
+    // Сортируем персонажей: живые в начале, мёртвые в конце
+    const sortedChars = chars.sort((a, b) => {
+        if (a.hp <= 0 && b.hp > 0) return 1; // Мёртвые в конец
+        if (a.hp > 0 && b.hp <= 0) return -1; // Живые в начало
+        return 0; // Остальные не меняют порядок
+    });
+
+    sortedChars.forEach(char => {
         const card = document.createElement('div');
         card.classList.add('card', `team${char.team}`);
         card.dataset.id = char.id;
-        if (selectedCharacter && selectedCharacter.id === char.id) card.classList.add('selected');
         if (char.id === data.currentTurn) card.classList.add('current');
         if (char.hp <= 0) card.classList.add('dead');
 
@@ -129,14 +136,9 @@ function renderCards(container, chars, data) {
                 <div class="hp-container"><div class="hp-diamond"><div class="hp">${char.hp}</div></div></div>
             </div>
         `;
-        card.addEventListener('click', () => {
-            if (char.hp > 0) setSelectedCharacter(char); // Выбор только живых персонажей
-            updateCharacterCards(data);
-        });
         container.appendChild(card);
     });
 }
-
 export function updateAbilityCards(myTeam, data) {
     if (isUpdatingAbilities) return;
     isUpdatingAbilities = true;
