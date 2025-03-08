@@ -136,6 +136,7 @@ function renderCards(container, chars, data) {
         container.appendChild(card);
     });
 }
+
 export function updateAbilityCards(myTeam, data) {
     if (isUpdatingAbilities) return;
     isUpdatingAbilities = true;
@@ -148,7 +149,7 @@ export function updateAbilityCards(myTeam, data) {
     abilityCards.innerHTML = '';
 
     const currentChar = findCharacter(data.teams, data.currentTurn);
-    if (currentChar && currentChar.team === myTeam) {
+    if (currentChar) {
         if (currentChar.abilities?.length) {
             // Отрисовываем способности как полноценные карточки
             currentChar.abilities.forEach((abilityID) => {
@@ -161,6 +162,12 @@ export function updateAbilityCards(myTeam, data) {
                 const card = document.createElement('div');
                 card.classList.add('ability-card');
                 if (selectedAbility && selectedAbility.name === ability.name) card.classList.add('selected');
+
+                // Добавляем класс locked, если ход не нашей команды
+                if (currentChar.team !== myTeam) {
+                    card.classList.add('locked');
+                }
+
                 card.innerHTML = `
                     <div class="image" style="background-image: url('${ability.imageURL}');"></div>
                     <div class="info">
@@ -168,10 +175,15 @@ export function updateAbilityCards(myTeam, data) {
                         ${ability.description || 'No description'}
                     </div>
                 `;
-                card.addEventListener('click', () => {
-                    setSelectedAbility(ability);
-                    updateAbilityCards(myTeam, data);
-                });
+
+                // Добавляем обработчик клика только если ход нашей команды
+                if (currentChar.team === myTeam) {
+                    card.addEventListener('click', () => {
+                        setSelectedAbility(ability);
+                        updateAbilityCards(myTeam, data);
+                    });
+                }
+
                 abilityCards.appendChild(card);
             });
 
@@ -210,6 +222,7 @@ export function updateAbilityCards(myTeam, data) {
     }
     isUpdatingAbilities = false;
 }
+
 export function updateBattleLog(data) {
     if (!data || !data.teams || !Array.isArray(data.teams)) {
         console.warn('Invalid data in updateBattleLog:', data);
@@ -252,4 +265,40 @@ export function updateBattleLog(data) {
         }
     }
     previousState = { ...data, teams: data.teams.map(team => ({ ...team, characters: [...team.characters] })) };
+}
+
+export function updateTurnHeader(myTeam, data) {
+    const turnHeader = document.getElementById('turnText');
+    if (!turnHeader) return;
+
+    const currentChar = findCharacter(data.teams, data.currentTurn);
+    if (currentChar) {
+        if (currentChar.team === myTeam) {
+            turnHeader.textContent = 'ВАШ ХОД';
+            turnHeader.style.color = '#4dabf7'; // Синий цвет для вашего хода
+            turnHeader.style.textShadow = '0 0 10px rgba(77, 171, 247, 0.7)';
+        } else {
+            turnHeader.textContent = 'ХОД ПРОТИВНИКА';
+            turnHeader.style.color = '#ff6b6b'; // Красный цвет для хода противника
+            turnHeader.style.textShadow = '0 0 10px rgba(255, 107, 107, 0.7)';
+        }
+    }
+}
+
+export function updateEndTurnButton(myTeam, data) {
+    const endTurnBtn = document.getElementById('endTurnBtn');
+    if (!endTurnBtn) return;
+
+    const currentChar = findCharacter(data.teams, data.currentTurn);
+    if (currentChar) {
+        if (currentChar.team === myTeam) {
+            endTurnBtn.textContent = 'Завершить ход';
+            endTurnBtn.disabled = false;
+            endTurnBtn.classList.remove('disabled');
+        } else {
+            endTurnBtn.textContent = 'Завершить ход';
+            endTurnBtn.disabled = true;
+            endTurnBtn.classList.add('disabled');
+        }
+    }
 }

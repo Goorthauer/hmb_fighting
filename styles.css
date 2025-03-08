@@ -109,6 +109,22 @@ body, html {
     margin-bottom: 2px; /* Уменьшено в 2 раза */
 }
 
+/* Стили для заблокированных карточек */
+.ability-card.locked {
+    opacity: 0.6;
+    filter: grayscale(100%);
+    cursor: not-allowed;
+    pointer-events: none; /* Отключаем взаимодействие */
+}
+
+.ability-card.locked .image {
+    filter: brightness(0.7);
+}
+
+.ability-card.locked .info {
+    color: #666;
+}
+
 /* Стили для стопки рубашек (MTG-стиль, уменьшенные в 2 раза) */
 .no-abilities-stack {
     position: relative;
@@ -262,11 +278,117 @@ body, html {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    overflow-y: auto;
-    flex-shrink: 0;
+    overflow: hidden; /* Чтобы содержимое не выходило за пределы */
 }
 
+
+/* Стили для заголовка хода */
+#turnHeader {
+    flex-shrink: 0; /* Запрещаем сжиматься */
+    height: 60px; /* Фиксированная высота */
+    padding: 10px;
+    background: linear-gradient(135deg, #2a2a40, #1e1e2f);
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+#turnText {
+    font-size: 18px;
+    font-weight: bold;
+    color: #ffd700;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+    animation: glow 2s infinite ease-in-out;
+    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+/* Анимация свечения текста */
+@keyframes glow {
+    0% { text-shadow: 0 0 10px rgba(255, 215, 0, 0.7); }
+    50% { text-shadow: 0 0 20px rgba(255, 215, 0, 1), 0 0 30px rgba(255, 215, 0, 0.8); }
+    100% { text-shadow: 0 0 10px rgba(255, 215, 0, 0.7); }
+}
+
+/* Анимация фона заголовка */
+#turnHeader::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    animation: slide 3s infinite linear;
+}
+
+@keyframes slide {
+    0% { left: -100%; }
+    100% { left: 100%; }
+}
+
+/* Стили для кнопки "Завершить ход" */
+#endTurnBtn {
+    background: linear-gradient(135deg, #4caf50, #388e3c);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    text-transform: uppercase;
+    transition: transform 0.2s, background 0.2s;
+    width: 100%;
+    padding: 10px;
+    margin-top: 10px;
+}
+
+#endTurnBtn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #45a049, #357a38);
+    transform: scale(1.05);
+}
+
+#endTurnBtn:disabled {
+    background: linear-gradient(135deg, #666, #555);
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+#endTurnBtn.disabled {
+    background: linear-gradient(135deg, #666, #555);
+    color: #aaa;
+}
+
+/* Стили для заголовка "История боя" */
+#battleLog h3 {
+    font-size: 18px;
+    font-weight: bold;
+    color: #ffd700;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+    background: linear-gradient(135deg, #2a2a40, #1e1e2f);
+    padding: 10px;
+    border-radius: 8px;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    text-align: center;
+    margin-bottom: 10px;
+    animation: glow 2s infinite ease-in-out;
+}
+
+@keyframes glow {
+    0% { text-shadow: 0 0 10px rgba(255, 215, 0, 0.7); }
+    50% { text-shadow: 0 0 20px rgba(255, 215, 0, 1), 0 0 30px rgba(255, 215, 0, 0.8); }
+    100% { text-shadow: 0 0 10px rgba(255, 215, 0, 0.7); }
+}
+
+
+
 #phaseContainer {
+    flex-shrink: 0; /* Запрещаем сжиматься */
     padding: 8px;
     background: linear-gradient(135deg, #1e1e2f, #2a2a40);
     border-radius: 12px;
@@ -275,7 +397,6 @@ body, html {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    flex-shrink: 0;
 }
 
 .phase {
@@ -303,19 +424,30 @@ body, html {
 .vs { color: rgba(255, 255, 255, 0.7); }
 
 #battleLog {
-    flex-grow: 1;
+    flex-grow: 1; /* Занимает всё оставшееся пространство */
     display: flex;
     flex-direction: column;
+    overflow: hidden; /* Чтобы содержимое не выходило за пределы */
 }
 
 #battleLog h3 {
-    font-size: 16px;
-    margin-bottom: 8px;
+    font-size: 18px;
+    font-weight: bold;
+    color: #ffd700;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+    background: linear-gradient(135deg, #2a2a40, #1e1e2f);
+    padding: 10px;
+    border-radius: 8px;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    text-align: center;
+    margin-bottom: 10px;
+    animation: glow 2s infinite ease-in-out;
+    flex-shrink: 0; /* Запрещаем сжиматься */
 }
 
 #logEntries {
-    height: 100%;
-    overflow-y: auto;
+    flex-grow: 1; /* Занимает всё оставшееся пространство */
+    overflow-y: auto; /* Добавляем скролл, если содержимое слишком большое */
     background: rgba(0, 0, 0, 0.5);
     border-radius: 8px;
     padding: 8px;
