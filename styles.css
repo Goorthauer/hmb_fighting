@@ -28,7 +28,7 @@ body, html {
     display: flex;
     gap: 10px;
     flex-grow: 1;
-    overflow: visible; /* Убираем ограничение по overflow */
+    overflow: hidden;
     min-height: 0;
 }
 
@@ -53,66 +53,65 @@ body, html {
     gap: 8px;
 }
 
-/* Стили для карточек способностей (уменьшенные в 2 раза) */
+/* Стили для карточек способностей */
 .ability-card {
-    width: 90px; /* Уменьшено в 2 раза */
-    height: 120px; /* Уменьшено в 2 раза */
+    width: 120px;
+    height: 120px;
     background: linear-gradient(135deg, #f5e8c7, #d9c9a1);
-    border: 2px solid #b8860b; /* Уменьшено в 2 раза */
-    border-radius: 7px; /* Уменьшено в 2 раза */
-    box-shadow: 0 3px 7.5px rgba(0, 0, 0, 0.4), inset 0 0 6px rgba(255, 215, 0, 0.3); /* Уменьшено в 2 раза */
+    border: 2px solid #b8860b;
+    border-radius: 7px;
+    box-shadow: 0 3px 7.5px rgba(0, 0, 0, 0.4), inset 0 0 6px rgba(255, 215, 0, 0.3);
     cursor: pointer;
     transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
     display: flex;
     flex-direction: column;
     position: relative;
     overflow: hidden;
-    transform: perspective(250px) rotateX(2deg); /* Уменьшено в 2 раза */
+    transform: perspective(250px) rotateX(2deg);
     animation: cardDraw 0.5s ease-out;
 }
 
 .ability-card:hover:not(.dead) {
-    transform: scale(1.1) perspective(250px) rotateX(0deg); /* Уменьшено в 2 раза */
-    box-shadow: 0 5px 12.5px rgba(0, 0, 0, 0.5), 0 0 10px rgba(255, 215, 0, 0.8); /* Уменьшено в 2 раза */
+    transform: scale(1.1) perspective(250px) rotateX(0deg);
+    box-shadow: 0 5px 12.5px rgba(0, 0, 0, 0.5), 0 0 10px rgba(255, 215, 0, 0.8);
 }
 
 .ability-card .image {
     width: 100%;
-    height: 60px; /* Уменьшено в 2 раза */
+    height: 60px;
     background-size: cover;
     background-position: center;
-    border-bottom: 1.5px solid #b8860b; /* Уменьшено в 2 раза */
+    border-bottom: 1.5px solid #b8860b;
     position: relative;
-    box-shadow: inset 0 -2.5px 5px rgba(0, 0, 0, 0.2); /* Уменьшено в 2 раза */
+    box-shadow: inset 0 -2.5px 5px rgba(0, 0, 0, 0.2);
 }
 
 .ability-card .info {
-    padding: 3px; /* Уменьшено в 2 раза */
-    font-size: 6px; /* Уменьшено в 2 раза */
+    padding: 3px;
+    font-size: 6px;
     color: #333;
     background: rgba(255, 255, 255, 0.85);
-    height: 58px; /* Уменьшено в 2 раза */
+    height: 58px;
     display: flex;
     flex-direction: column;
-    gap: 2px; /* Уменьшено в 2 раза */
+    gap: 2px;
     text-align: left;
-    border-top: 0.5px solid #b8860b; /* Уменьшено в 2 раза */
+    border-top: 0.5px solid #b8860b;
     overflow: hidden;
     position: relative;
 }
 
 .ability-card .info strong {
-    font-size: 7px; /* Уменьшено в 2 раза */
+    font-size: 7px;
     color: #000;
-    margin-bottom: 2px; /* Уменьшено в 2 раза */
+    margin-bottom: 2px;
 }
 
-/* Стили для заблокированных карточек */
 .ability-card.locked {
     opacity: 0.6;
     filter: grayscale(100%);
     cursor: not-allowed;
-    pointer-events: none; /* Отключаем взаимодействие */
+    pointer-events: none;
 }
 
 .ability-card.locked .image {
@@ -123,26 +122,26 @@ body, html {
     color: #666;
 }
 
-/* Стили для стопки рубашек (MTG-стиль, уменьшенные в 2 раза) */
+/* Стопка рубашек */
 .no-abilities-stack {
     position: relative;
     width: 100%;
-    height: 130px; /* Уменьшено в 2 раза */
+    height: 130px;
     display: flex;
     justify-content: center;
     align-items: center;
-    perspective: 500px; /* Уменьшено в 2 раза */
-    margin-top: 10px; /* Уменьшено в 2 раза */
+    perspective: 500px;
+    margin-top: 10px;
 }
 
 .no-abilities-stack .no-abilities-card {
     position: absolute;
-    width: 90px; /* Уменьшено в 2 раза */
-    height: 120px; /* Уменьшено в 2 раза */
+    width: 90px;
+    height: 120px;
     background: linear-gradient(160deg, #1a1a1a, #0d0d0d);
-    border: 2px solid #444; /* Уменьшено в 2 раза */
-    border-radius: 6px; /* Уменьшено в 2 раза */
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.6); /* Уменьшено в 2 раза */
+    border: 2px solid #444;
+    border-radius: 6px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.6);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -152,7 +151,6 @@ body, html {
     overflow: hidden;
 }
 
-/* Рамка карточки */
 .no-abilities-card::before {
     content: '';
     position: absolute;
@@ -160,12 +158,11 @@ body, html {
     left: 0;
     width: 100%;
     height: 100%;
-    border: 1px solid rgba(255, 255, 255, 0.1); /* Уменьшено в 2 раза */
-    border-radius: 4px; /* Уменьшено в 2 раза */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
     pointer-events: none;
 }
 
-/* Текстура фона */
 .no-abilities-card::after {
     content: '';
     position: absolute;
@@ -178,29 +175,27 @@ body, html {
     pointer-events: none;
 }
 
-/* Позиционируем карточки веером */
 .no-abilities-stack .no-abilities-card:nth-child(1) {
     transform: rotate(-5deg) translateY(0);
     z-index: 3;
 }
 
 .no-abilities-stack .no-abilities-card:nth-child(2) {
-    transform: rotate(0deg) translateY(2.5px); /* Уменьшено в 2 раза */
+    transform: rotate(0deg) translateY(2.5px);
     z-index: 2;
     opacity: 0.8;
 }
 
 .no-abilities-stack .no-abilities-card:nth-child(3) {
-    transform: rotate(5deg) translateY(5px); /* Уменьшено в 2 раза */
+    transform: rotate(5deg) translateY(5px);
     z-index: 1;
     opacity: 0.6;
 }
 
-/* Изображение рубашки */
 .no-abilities-card .image {
     width: 100%;
     height: 100%;
-    background-image: url('./static/abilities/no_abilities.png'); /* Обновлённый путь */
+    background-image: url('./static/abilities/no_abilities.png');
     background-size: cover;
     background-position: center;
     filter: brightness(0.9) contrast(1.2);
@@ -208,10 +203,9 @@ body, html {
     z-index: 1;
 }
 
-/* Анимация для лёгкого "дыхания" стопки */
 @keyframes stackBreath {
     0% { transform: rotate(-5deg) translateY(0); }
-    50% { transform: rotate(-5deg) translateY(-2.5px); } /* Уменьшено в 2 раза */
+    50% { transform: rotate(-5deg) translateY(-2.5px); }
     100% { transform: rotate(-5deg) translateY(0); }
 }
 
@@ -219,9 +213,8 @@ body, html {
     animation: stackBreath 2s infinite ease-in-out;
 }
 
-/* Анимация для появления карточек */
 @keyframes fadeIn {
-    0% { opacity: 0; transform: translateY(10px); } /* Уменьшено в 2 раза */
+    0% { opacity: 0; transform: translateY(10px); }
     100% { opacity: 1; transform: translateY(0); }
 }
 
@@ -231,37 +224,19 @@ body, html {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    max-width: none;
     min-height: 0;
     align-items: center;
 }
 
 #gameCanvas {
-    width: 960px; /* 16 * 60px */
-    height: 540px; /* 9 * 60px */
+    width: 960px;
+    height: 540px;
     background: #fff;
     border: 3px solid #444;
     border-radius: 16px;
     box-shadow: 0 0 30px rgba(0, 0, 0, 0.7);
     flex-shrink: 0;
 }
-
-#activeEffects {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    padding: 10px;
-    max-height: 120px;
-    overflow-y: auto;
-    flex-shrink: 0;
-    width: 960px; /* Выравниваем по ширине канваса */
-}
-
-#activeEffects h3 {
-    font-size: 14px;
-    margin-bottom: 8px;
-}
-
-#effectsList { font-size: 12px; }
 
 /* Правая панель */
 #rightPanel {
@@ -273,13 +248,13 @@ body, html {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    overflow: hidden; /* Чтобы содержимое не выходило за пределы */
+    overflow: hidden;
+    flex-shrink: 0;
 }
 
-/* Стили для заголовка хода */
 #turnHeader {
-    flex-shrink: 0; /* Запрещаем сжиматься */
-    height: 60px; /* Фиксированная высота */
+    flex-shrink: 0;
+    height: 60px;
     padding: 10px;
     background: linear-gradient(135deg, #2a2a40, #1e1e2f);
     border-radius: 12px;
@@ -302,14 +277,12 @@ body, html {
     background: rgba(0, 0, 0, 0.3);
 }
 
-/* Анимация свечения текста */
 @keyframes glow {
     0% { text-shadow: 0 0 10px rgba(255, 215, 0, 0.7); }
     50% { text-shadow: 0 0 20px rgba(255, 215, 0, 1), 0 0 30px rgba(255, 215, 0, 0.8); }
     100% { text-shadow: 0 0 10px rgba(255, 215, 0, 0.7); }
 }
 
-/* Анимация фона заголовка */
 #turnHeader::before {
     content: '';
     position: absolute;
@@ -326,7 +299,6 @@ body, html {
     100% { left: 100%; }
 }
 
-/* Стили для кнопки "Завершить ход" */
 #endTurnBtn {
     background: linear-gradient(135deg, #4caf50, #388e3c);
     color: white;
@@ -358,29 +330,8 @@ body, html {
     color: #aaa;
 }
 
-/* Стили для заголовка "История боя" */
-#battleLog h3 {
-    font-size: 18px;
-    font-weight: bold;
-    color: #ffd700;
-    text-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
-    background: linear-gradient(135deg, #2a2a40, #1e1e2f);
-    padding: 10px;
-    border-radius: 8px;
-    border: 2px solid rgba(255, 255, 255, 0.1);
-    text-align: center;
-    margin-bottom: 10px;
-    animation: glow 2s infinite ease-in-out;
-}
-
-@keyframes glow {
-    0% { text-shadow: 0 0 10px rgba(255, 215, 0, 0.7); }
-    50% { text-shadow: 0 0 20px rgba(255, 215, 0, 1), 0 0 30px rgba(255, 215, 0, 0.8); }
-    100% { text-shadow: 0 0 10px rgba(255, 215, 0, 0.7); }
-}
-
 #phaseContainer {
-    flex-shrink: 0; /* Запрещаем сжиматься */
+    flex-shrink: 0;
     padding: 8px;
     background: linear-gradient(135deg, #1e1e2f, #2a2a40);
     border-radius: 12px;
@@ -416,10 +367,10 @@ body, html {
 .vs { color: rgba(255, 255, 255, 0.7); }
 
 #battleLog {
-    flex-grow: 1; /* Занимает всё оставшееся пространство */
+    flex-grow: 1;
     display: flex;
     flex-direction: column;
-    overflow: hidden; /* Чтобы содержимое не выходило за пределы */
+    overflow: hidden;
 }
 
 #battleLog h3 {
@@ -434,12 +385,12 @@ body, html {
     text-align: center;
     margin-bottom: 10px;
     animation: glow 2s infinite ease-in-out;
-    flex-shrink: 0; /* Запрещаем сжиматься */
+    flex-shrink: 0;
 }
 
 #logEntries {
-    flex-grow: 1; /* Занимает всё оставшееся пространство */
-    overflow-y: auto; /* Добавляем скролл, если содержимое слишком большое */
+    flex-grow: 1;
+    overflow-y: auto;
     background: rgba(0, 0, 0, 0.5);
     border-radius: 8px;
     padding: 8px;
@@ -456,23 +407,25 @@ body, html {
 
 /* Карты персонажей */
 #characterCards {
-    width: 100%; /* Растягиваем на всю ширину контейнера */
+    width: 80%;
+    max-width: 1200px;
+    margin: 0 auto;
     display: flex;
-    gap: 15px;
-    padding: 15px;
+    gap: 10px;
+    padding: 10px;
     background: rgba(255, 255, 255, 0.1);
     border-radius: 12px;
-    overflow-x: auto; /* Включаем горизонтальный скролл */
+    overflow-x: auto;
     overflow-y: hidden;
     white-space: nowrap;
-    height: 260px;
+    height: 160px; /* Возвращаем высоту */
     flex-shrink: 0;
-    box-sizing: border-box; /* Учитываем padding в ширине */
+    box-sizing: border-box;
     scrollbar-width: thin;
     scrollbar-color: #b8860b rgba(255, 255, 255, 0.1);
+    justify-content: flex-start;
 }
 
-/* Стилизация полосы прокрутки для WebKit (Chrome, Safari) */
 #characterCards::-webkit-scrollbar {
     height: 8px;
 }
@@ -491,31 +444,29 @@ body, html {
     background: #ffd700;
 }
 
-/* Стили для карточки персонажа */
-.card {
-    width: 200px;
-    min-width: 200px;
-    height: 250px;
+/* Уменьшенные карточки персонажей */
+#characterCards .card {
+    width: 100px;
+    min-width: 100px;
+    height: 140px; /* Возвращаем высоту */
     background: linear-gradient(135deg, #f5e8c7, #d9c9a1);
-    border: 4px solid #b8860b;
-    border-radius: 14px;
-    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.4), inset 0 0 12px rgba(255, 215, 0, 0.3);
+    border: 3px solid #b8860b;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
     cursor: pointer;
-    transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
     display: flex;
     flex-direction: column;
     position: relative;
     overflow: hidden;
-    transform: perspective(500px) rotateX(2deg);
-    animation: cardDraw 0.5s ease-out;
 }
 
-.card:hover:not(.dead) {
-    transform: scale(1.1) perspective(500px) rotateX(0deg);
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 215, 0, 0.8);
+#characterCards .card:hover:not(.dead) {
+    transform: scale(1.05);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.5), 0 0 10px rgba(255, 215, 0, 0.8);
 }
 
-.card.dead {
+#characterCards .card.dead {
     opacity: 0.6;
     filter: grayscale(100%);
     cursor: not-allowed;
@@ -524,74 +475,150 @@ body, html {
     background: linear-gradient(135deg, #555, #333);
 }
 
-.card.team0 {
+#characterCards .card.team0 {
     border-color: #800080;
-    box-shadow: inset 0 0 12px rgba(128, 0, 128, 0.6);
+    box-shadow: inset 0 0 8px rgba(128, 0, 128, 0.6);
 }
 
-.card.team1 {
+#characterCards .card.team1 {
     border-color: #ffd700;
-    box-shadow: inset 0 0 12px rgba(255, 215, 0, 0.6);
+    box-shadow: inset 0 0 8px rgba(255, 215, 0, 0.6);
 }
 
-.card.selected {
-    border-color: #00ff00;
-    box-shadow: 0 0 20px rgba(0, 255, 0, 0.8), inset 0 0 12px rgba(0, 255, 0, 0.5);
-    animation: selectedPulse 1.5s infinite ease-in-out;
-}
-
-.card.current {
+#characterCards .card.current {
     border-color: #ffff00;
-    box-shadow: 0 0 20px rgba(255, 255, 0, 0.8), inset 0 0 12px rgba(255, 255, 0, 0.5);
+    box-shadow: 0 0 15px rgba(255, 255, 0, 0.8), inset 0 0 8px rgba(255, 255, 0, 0.5);
     animation: pulse 1.5s infinite ease-in-out;
 }
 
-.card .image {
+#characterCards .card .image {
     width: 100%;
-    height: 200px; /* Фиксированная высота остаётся */
-    background-size: cover; /* Изображение помещается полностью */
+    height: 100px; /* Увеличиваем высоту изображения */
+    background-size: cover;
     background-position: center;
-    background-repeat: no-repeat; /* Убираем повторение */
-    border-bottom: 3px solid #b8860b;
+    border-bottom: 2px solid #b8860b;
     position: relative;
-    box-shadow: inset 0 -5px 10px rgba(0, 0, 0, 0.2);
+    box-shadow: inset 0 -3px 6px rgba(0, 0, 0, 0.2);
 }
 
-.card .name {
+#characterCards .card .name {
     width: 100%;
-    padding: 4px 0;
+    padding: 2px 0;
     background: rgba(0, 0, 0, 0.5);
     color: #fff;
-    font-size: 8px;
+    font-size: 7px;
     font-weight: bold;
     text-align: center;
     text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
     border-bottom: 1px solid #b8860b;
 }
 
-.card .info {
-    padding: 6px;
+#characterCards .card .info {
+    padding: 3px;
     color: #333;
     background: rgba(255, 255, 255, 0.85);
     display: flex;
     flex-direction: column;
-    text-align: left;
-    border-top: 1px solid #b8860b;
-    overflow: hidden;
-    position: relative;
-    font-size: 9px;
-    height: 156px;
+    justify-content: center;
+    height: 38px;
+    font-size: 7px;
+    line-height: 1.2;
 }
 
-.card .stats-container {
+/* Модальное окно */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.8);
+}
+
+.modal-content {
+    background: linear-gradient(135deg, #2a2a40, #1e1e2f);
+    margin: 10% auto;
+    padding: 20px;
+    border: 2px solid #b8860b;
+    border-radius: 16px;
+    width: 300px;
+    max-width: 90%;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.7);
+    position: relative;
+}
+
+.close {
+    color: #ffd700;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: color 0.3s ease;
+}
+
+.close:hover,
+.close:focus {
+    color: #ff6b6b;
+    text-decoration: none;
+}
+
+/* Карточка в модальном окне */
+#modalCharacterCard .card {
+    width: 100%;
+    height: 450px;
+    background: linear-gradient(135deg, #f5e8c7, #d9c9a1);
+    border: 4px solid #b8860b;
+    border-radius: 14px;
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.4), inset 0 0 12px rgba(255, 215, 0, 0.3);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+}
+
+#modalCharacterCard .card .image {
+    width: 100%;
+    height: 250px;
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    border-bottom: 3px solid #b8860b;
+}
+
+#modalCharacterCard .card .name {
+    font-size: 14px;
+    padding: 6px 0;
+    background: linear-gradient(135deg, #ffd700, #b8860b);
+    color: #fff;
+    font-weight: bold;
+    text-align: center;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+    border-bottom: 2px solid #b8860b;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+#modalCharacterCard .card .info {
+    height: 200px;
+    font-size: 10px;
+    padding: 8px;
+    color: #333;
+    background: rgba(255, 255, 255, 0.85);
+    display: flex;
+    flex-direction: column;
+}
+
+#modalCharacterCard .card .stats-container {
     display: flex;
     flex-wrap: wrap;
     column-gap: 10px;
-    row-gap: 3px;
+    row-gap: 5px;
     flex-grow: 1;
 }
 
-.card .stat {
+#modalCharacterCard .card .stat {
     display: flex;
     align-items: center;
     gap: 4px;
@@ -599,22 +626,78 @@ body, html {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    width: calc(50% - 5px); /* Две колонки */
+    width: calc(50% - 5px);
 }
 
-.card .stat.full-width {
-    width: 100%; /* Оружие и щит на всю ширину */
+#modalCharacterCard .card .stat.full-width {
+    width: 100%;
 }
 
-.card .stat i {
-    font-size: 10px;
+#modalCharacterCard .card .stat i {
+    font-size: 12px;
     color: #555;
 }
 
-.card .label {
+#modalCharacterCard .card .label {
     font-weight: bold;
     color: #555;
+    font-size: 11px;
+}
+
+#modalCharacterCard .card .hp-text {
     font-size: 10px;
+    color: #333;
+    padding: 5px 0;
+    text-align: center;
+}
+
+/* Анимации */
+@keyframes cardDraw {
+    0% { transform: scale(0.8) perspective(500px) rotateX(10deg); opacity: 0; }
+    100% { transform: scale(1) perspective(500px) rotateX(2deg); opacity: 1; }
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 15px rgba(255, 255, 0, 0.8), inset 0 0 8px rgba(255, 255, 0, 0.5); }
+    50% { box-shadow: 0 0 25px rgba(255, 255, 0, 1), inset 0 0 12px rgba(255, 255, 0, 0.7); }
+    100% { box-shadow: 0 0 15px rgba(255, 255, 0, 0.8), inset 0 0 8px rgba(255, 255, 0, 0.5); }
+}
+
+@keyframes phaseGlow {
+    0% { color: #ff6b6b; text-shadow: 0 0 8px rgba(255, 107, 107, 0.7); }
+    50% { color: #ff9f43; text-shadow: 0 0 12px rgba(255, 159, 67, 0.9); }
+    100% { color: #ff6b6b; text-shadow: 0 0 8px rgba(255, 107, 107, 0.7); }
+}
+
+/* Адаптивность */
+@media (max-width: 1200px) {
+    .top-section {
+        flex-direction: column;
+        align-items: center;
+    }
+    #wrestleCards, #rightPanel {
+        width: 100%;
+        max-width: 300px;
+    }
+    #characterCards {
+        width: 90%;
+        height: 120px; /* Уменьшаем для адаптивности */
+    }
+    #characterCards .card {
+        width: 80px;
+        height: 100px; /* Уменьшаем пропорционально */
+    }
+    #characterCards .card .image {
+        height: 70px; /* Пропорционально уменьшаем */
+    }
+    #characterCards .card .info {
+        height: 30px;
+        font-size: 6px;
+    }
+    #gameCanvas {
+        width: 840px;
+        height: 472.5px;
+    }
 }
 
 .card .hp-container {
@@ -650,98 +733,4 @@ body, html {
     font-weight: bold;
     font-family: 'Arial', sans-serif;
     text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
-}
-
-/* Кнопки */
-button {
-    padding: 6px 12px;
-    background: linear-gradient(135deg, #4caf50, #388e3c);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 11px;
-    text-transform: uppercase;
-    transition: transform 0.2s, background 0.2s;
-    width: 100%;
-}
-
-button:hover:not(:disabled) {
-    background: linear-gradient(135deg, #45a049, #357a38);
-    transform: scale(1.05);
-}
-
-button:disabled {
-    background: #666;
-    cursor: not-allowed;
-}
-
-#phaseContainer #exitBtn {
-    background: linear-gradient(135deg, #ff4444, #d32f2f);
-}
-
-#phaseContainer #exitBtn:hover:not(:disabled) {
-    background: linear-gradient(135deg, #e53935, #c62828);
-}
-
-/* Анимации */
-@keyframes selectedPulse {
-    0% { box-shadow: 0 0 20px rgba(0, 255, 0, 0.8), inset 0 0 12px rgba(0, 255, 0, 0.5); }
-    50% { box-shadow: 0 0 30px rgba(0, 255, 0, 1), inset 0 0 15px rgba(0, 255, 0, 0.7); }
-    100% { box-shadow: 0 0 20px rgba(0, 255, 0, 0.8), inset 0 0 12px rgba(0, 255, 0, 0.5); }
-}
-
-@keyframes cardDraw {
-    0% { transform: scale(0.8) perspective(500px) rotateX(10deg); opacity: 0; }
-    100% { transform: scale(1) perspective(500px) rotateX(2deg); opacity: 1; }
-}
-
-@keyframes pulse {
-    0% { box-shadow: 0 0 20px rgba(255, 255, 0, 0.8), inset 0 0 12px rgba(255, 255, 0, 0.5); }
-    50% { box-shadow: 0 0 30px rgba(255, 255, 0, 1), inset 0 0 15px rgba(255, 255, 0, 0.7); }
-    100% { box-shadow: 0 0 20px rgba(255, 255, 0, 0.8), inset 0 0 12px rgba(255, 255, 0, 0.5); }
-}
-
-@keyframes phaseGlow {
-    0% { color: #ff6b6b; text-shadow: 0 0 8px rgba(255, 107, 107, 0.7); }
-    50% { color: #ff9f43; text-shadow: 0 0 12px rgba(255, 159, 67, 0.9); }
-    100% { color: #ff6b6b; text-shadow: 0 0 8px rgba(255, 107, 107, 0.7); }
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-/* Адаптивность */
-@media (max-width: 1200px) {
-    .top-section {
-        flex-direction: column;
-        align-items: center;
-    }
-    #wrestleCards, #rightPanel {
-        width: 100%;
-        max-width: 300px;
-    }
-    #characterCards {
-        max-width: 915px; /* 5 карточек: (140px + 15px) * 5 */
-        height: 200px;
-    }
-    .card {
-        width: 140px;
-        height: 190px;
-    }
-    .card .image {
-        height: 90px;
-    }
-    .card .info {
-        height: 96px;
-    }
-    #gameCanvas {
-        width: 840px; /* 16 * 60 * 0.875 */
-        height: 472.5px; /* 9 * 60 * 0.875 */
-    }
-    #activeEffects {
-        width: 840px;
-    }
 }

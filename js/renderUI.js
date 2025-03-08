@@ -85,7 +85,7 @@ export function updateCharacterCards(data) {
     if (data.teams && Array.isArray(data.teams)) {
         data.teams.forEach(team => {
             team.characters.forEach(char => {
-                allChars.push(char); // Убираем фильтр hp > 0, добавляем всех персонажей
+                allChars.push(char);
             });
         });
     }
@@ -107,13 +107,12 @@ export function updateCharacterCards(data) {
 }
 
 function renderCards(container, chars, data) {
-    container.innerHTML = ''; // Очищаем контейнер
+    container.innerHTML = '';
 
-    // Сортируем персонажей: живые в начале, мёртвые в конце
     const sortedChars = chars.sort((a, b) => {
-        if (a.hp <= 0 && b.hp > 0) return 1; // Мёртвые в конец
-        if (a.hp > 0 && b.hp <= 0) return -1; // Живые в начало
-        return 0; // Остальные не меняют порядок
+        if (a.hp <= 0 && b.hp > 0) return 1;
+        if (a.hp > 0 && b.hp <= 0) return -1;
+        return 0;
     });
 
     sortedChars.forEach(char => {
@@ -124,6 +123,26 @@ function renderCards(container, chars, data) {
         if (char.hp <= 0) card.classList.add('dead');
 
         card.innerHTML = `
+            <div class="image" style="background-image: url('${char.imageURL || 'default-image.png'}');"></div>
+            <div class="name">${char.name}</div>
+            <div class="info">
+                <div>Здоровье: ${char.hp}</div>
+                <div>Инициатива: ${char.initiative}</div>
+            </div>
+        `;
+
+        card.addEventListener('click', () => showCharacterModal(char, data));
+        container.appendChild(card);
+    });
+}
+
+function showCharacterModal(char, data) {
+    const modal = document.getElementById('characterModal');
+    const modalCard = document.getElementById('modalCharacterCard');
+    const closeBtn = modal.querySelector('.close');
+
+    modalCard.innerHTML = `
+        <div class="card team${char.team}">
             <div class="image" style="background-image: url('${char.imageURL || 'default-image.png'}');"></div>
             <div class="name">${char.name}</div>
             <div class="info">
@@ -139,9 +158,15 @@ function renderCards(container, chars, data) {
                 </div>
                 <div class="hp-container"><div class="hp-diamond"><div class="hp">${char.hp}</div></div></div>
             </div>
-        `;
-        container.appendChild(card);
-    });
+        </div>
+    `;
+
+    modal.style.display = 'block';
+
+    closeBtn.onclick = () => modal.style.display = 'none';
+    window.onclick = (event) => {
+        if (event.target === modal) modal.style.display = 'none';
+    };
 }
 
 export function updateAbilityCards(myTeam, data) {
@@ -158,7 +183,6 @@ export function updateAbilityCards(myTeam, data) {
     const currentChar = findCharacter(data.teams, data.currentTurn);
     if (currentChar) {
         if (currentChar.abilities?.length) {
-            // Отрисовываем способности как полноценные карточки
             currentChar.abilities.forEach((abilityID) => {
                 const ability = data.abilitiesConfig[abilityID];
                 if (!ability) {
@@ -170,7 +194,6 @@ export function updateAbilityCards(myTeam, data) {
                 card.classList.add('ability-card');
                 if (selectedAbility && selectedAbility.name === ability.name) card.classList.add('selected');
 
-                // Добавляем класс locked, если ход не нашей команды
                 if (currentChar.team !== myTeam) {
                     card.classList.add('locked');
                 }
@@ -183,7 +206,6 @@ export function updateAbilityCards(myTeam, data) {
                     </div>
                 `;
 
-                // Добавляем обработчик клика только если ход нашей команды
                 if (currentChar.team === myTeam) {
                     card.addEventListener('click', () => {
                         setSelectedAbility(ability);
@@ -194,36 +216,24 @@ export function updateAbilityCards(myTeam, data) {
                 abilityCards.appendChild(card);
             });
 
-            // Отрисовываем рубашки веером чуть ниже
             const stack = document.createElement('div');
             stack.classList.add('no-abilities-stack');
-
-            // Создаём 3 рубашки
             for (let i = 0; i < 3; i++) {
                 const card = document.createElement('div');
                 card.classList.add('no-abilities-card');
-                card.innerHTML = `
-                    <div class="image"></div>
-                `;
+                card.innerHTML = `<div class="image"></div>`;
                 stack.appendChild(card);
             }
-
             abilityCards.appendChild(stack);
         } else {
-            // Если способностей нет, отрисовываем только рубашки
             const stack = document.createElement('div');
             stack.classList.add('no-abilities-stack');
-
-            // Создаём 3 рубашки
             for (let i = 0; i < 3; i++) {
                 const card = document.createElement('div');
                 card.classList.add('no-abilities-card');
-                card.innerHTML = `
-                    <div class="image"></div>
-                `;
+                card.innerHTML = `<div class="image"></div>`;
                 stack.appendChild(card);
             }
-
             abilityCards.appendChild(stack);
         }
     }
@@ -240,7 +250,6 @@ export function updateBattleLog(data) {
         previousState = {...data, teams: data.teams.map(team => ({...team, characters: [...team.characters]}))};
         return;
     }
-
 
     for (let teamIdx = 0; teamIdx < 2; teamIdx++) {
         const prevTeam = previousState.teams[teamIdx]?.characters;
@@ -276,11 +285,11 @@ export function updateTurnHeader(myTeam, data) {
     if (currentChar) {
         if (currentChar.team === myTeam) {
             turnHeader.textContent = 'ВАШ ХОД';
-            turnHeader.style.color = '#4dabf7'; // Синий цвет для вашего хода
+            turnHeader.style.color = '#4dabf7';
             turnHeader.style.textShadow = '0 0 10px rgba(77, 171, 247, 0.7)';
         } else {
             turnHeader.textContent = 'ХОД ПРОТИВНИКА';
-            turnHeader.style.color = '#ff6b6b'; // Красный цвет для хода противника
+            turnHeader.style.color = '#ff6b6b';
             turnHeader.style.textShadow = '0 0 10px rgba(255, 107, 107, 0.7)';
         }
     }

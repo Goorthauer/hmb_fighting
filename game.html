@@ -25,10 +25,10 @@
             <div id="phaseContainer">
                 <span class="phase"></span>
                 <span class="progress">
-      <span class="team0"></span>
-      <span class="vs">vs</span>
-      <span class="team1"></span>
-    </span>
+                    <span class="team0"></span>
+                    <span class="vs">vs</span>
+                    <span class="team1"></span>
+                </span>
                 <button id="endTurnBtn">End Turn</button>
             </div>
             <div id="battleLog">
@@ -38,6 +38,14 @@
         </div>
     </div>
     <div id="characterCards"></div>
+</div>
+
+<!-- Модальное окно -->
+<div id="characterModal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <div id="modalCharacterCard"></div>
+    </div>
 </div>
 
 <script type="module">
@@ -51,7 +59,7 @@
         updateTurnHeader,
         updateEndTurnButton
     } from './js/renderUI.js';
-    import {drawBoard} from './js/renderCanvas.js'; // Убрали preloadImages
+    import {drawBoard} from './js/renderCanvas.js';
     import {setupEventListeners} from './js/eventHandlers.js';
 
     const storedClientID = localStorage.getItem('clientID');
@@ -73,7 +81,7 @@
         updatePhaseAndProgress(data);
         updateBattleLog(data);
         updateEndTurnButton(data.teamID, data);
-        updateTurnHeader(data.teamID, data); // Добавляем обновление заголовка
+        updateTurnHeader(data.teamID, data);
         if (!eventListenersSet) {
             setupEventListeners(data.teamID);
             eventListenersSet = true;
@@ -84,7 +92,7 @@
         const data = JSON.parse(event.data);
         console.log('Received WebSocket data:', data);
         latestData = data;
-        renderGame(latestData); // Просто рендерим сразу
+        renderGame(latestData);
     });
 </script>
 </body>
