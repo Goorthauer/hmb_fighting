@@ -1,5 +1,5 @@
-import { gameState, selectedCharacter, selectedAbility, setSelectedCharacter, setSelectedAbility } from './state.js';
-import { findCharacter, addLogEntry } from './utils.js';
+import {gameState, selectedCharacter, selectedAbility, setSelectedCharacter, setSelectedAbility} from './state.js';
+import {findCharacter, addLogEntry} from './utils.js';
 
 let previousState = null;
 let turnOrder = [];
@@ -9,7 +9,7 @@ let isUpdatingCards = false;
 let isUpdatingAbilities = false;
 
 function saveTurnState(gameSessionId) {
-    const state = { turnOrder, roundStarted, previousTurn: previousState?.currentTurn };
+    const state = {turnOrder, roundStarted, previousTurn: previousState?.currentTurn};
     localStorage.setItem(`turnState_${gameSessionId}`, JSON.stringify(state));
 }
 
@@ -19,7 +19,7 @@ function loadTurnState(gameSessionId) {
         const state = JSON.parse(savedState);
         turnOrder = state.turnOrder || [];
         roundStarted = state.roundStarted || false;
-        previousState = state.previousTurn ? { currentTurn: state.previousTurn } : null;
+        previousState = state.previousTurn ? {currentTurn: state.previousTurn} : null;
         currentGameSessionId = gameSessionId;
         return true;
     }
@@ -92,7 +92,7 @@ export function updateCharacterCards(data) {
 
     if (!roundStarted || turnOrder.length === 0) {
         if (loadTurnState(gameSessionId)) {
-            console.log('Loaded turn state:', { turnOrder, previousTurn: previousState?.currentTurn });
+            console.log('Loaded turn state:', {turnOrder, previousTurn: previousState?.currentTurn});
         } else {
             allChars.sort((a, b) => b.initiative - a.initiative);
             turnOrder = allChars.map(char => char.id);
@@ -124,8 +124,8 @@ function renderCards(container, chars, data) {
                 <div class="stat"><i class="fas fa-skull"></i> <span class="label">Атака:</span> ${char.attackMin}-${char.attackMax}</div>
                 <div class="stat"><i class="fas fa-shield-alt"></i> <span class="label">Защита:</span> ${char.defense}</div>
                 <div class="stat"><i class="fas fa-rocket"></i> <span class="label">Инициатива:</span> ${char.initiative}</div>
-                <div class="stat"><i class="fas fa-gavel"></i> <span class="label"></span> ${data.weaponsConfig[char.weapon]?.name || 'None'}</div>
-                <div class="stat"><i class="fas fa-shield"></i> <span class="label"></span> ${data.shieldsConfig[char.shield]?.name || 'None'}</div>
+                <div class="stat"><i class="fas fa-gavel"></i> <span class="label"></span> ${data.weaponsConfig[char.weapon]?.display_name || 'None'}</div>
+                <div class="stat"><i class="fas fa-shield"></i> <span class="label"></span> ${data.shieldsConfig[char.shield]?.display_name || 'None'}</div>
                 <div class="hp-container"><div class="hp-diamond"><div class="hp">${char.hp}</div></div></div>
             </div>
         `;
@@ -171,7 +171,7 @@ export function updateAbilityCards(myTeam, data) {
                 card.innerHTML = `
                     <div class="image" style="background-image: url('${ability.imageURL}');"></div>
                     <div class="info">
-                        <strong>${ability.name}</strong><br>
+                        <strong>${ability.display_name}</strong><br>
                         ${ability.description || 'No description'}
                     </div>
                 `;
@@ -230,23 +230,17 @@ export function updateBattleLog(data) {
     }
 
     if (!previousState || !previousState.teams || !Array.isArray(previousState.teams)) {
-        previousState = { ...data, teams: data.teams.map(team => ({ ...team, characters: [...team.characters] })) };
+        previousState = {...data, teams: data.teams.map(team => ({...team, characters: [...team.characters]}))};
         return;
     }
 
-    const prevChar = findCharacter(previousState.teams, previousState.currentTurn);
-    const currChar = findCharacter(data.teams, data.currentTurn);
-
-    if (previousState.phase !== data.phase) {
-        addLogEntry(`Phase changed to ${data.phase} for ${currChar ? currChar.name : 'Unknown'}`);
-    }
 
     for (let teamIdx = 0; teamIdx < 2; teamIdx++) {
         const prevTeam = previousState.teams[teamIdx]?.characters;
         const currTeam = data.teams[teamIdx]?.characters;
 
         if (!prevTeam || !currTeam) {
-            console.warn(`Team ${teamIdx} is missing in previousState or data:`, { prevTeam, currTeam });
+            console.warn(`Team ${teamIdx} is missing in previousState or data:`, {prevTeam, currTeam});
             continue;
         }
 
@@ -254,17 +248,17 @@ export function updateBattleLog(data) {
             const prev = prevTeam[i];
             const curr = currTeam[i];
             if (prev.position[0] !== curr.position[0] || prev.position[1] !== curr.position[1]) {
-                addLogEntry(`${curr.name} moved from (${prev.position[0]}, ${prev.position[1]}) to (${curr.position[0]}, ${curr.position[1]})`);
+                addLogEntry(`${curr.name} походил из (${prev.position[0]}, ${prev.position[1]}) в (${curr.position[0]}, ${curr.position[1]})`);
             }
             if (prev.hp !== curr.hp && curr.hp > 0) {
-                addLogEntry(`${curr.name} took ${prev.hp - curr.hp} damage (HP: ${curr.hp})`);
+                addLogEntry(`${curr.name} получил ${prev.hp - curr.hp} урона (Оставшееся здоровье: ${curr.hp})`);
             }
             if (prev.hp > 0 && curr.hp <= 0) {
-                addLogEntry(`${curr.name} was defeated`);
+                addLogEntry(`${curr.name} был побежден`);
             }
         }
     }
-    previousState = { ...data, teams: data.teams.map(team => ({ ...team, characters: [...team.characters] })) };
+    previousState = {...data, teams: data.teams.map(team => ({...team, characters: [...team.characters]}))};
 }
 
 export function updateTurnHeader(myTeam, data) {

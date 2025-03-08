@@ -20,6 +20,7 @@ type User struct {
 
 type Weapon struct {
 	Name         string `json:"name"`
+	DisplayName  string `json:"display_name"`
 	Range        int    `json:"range"`
 	IsTwoHanded  bool   `json:"isTwoHanded"`
 	ImageURL     string `json:"imageURL"`
@@ -29,6 +30,7 @@ type Weapon struct {
 
 type Shield struct {
 	Name         string `json:"name"`
+	DisplayName  string `json:"display_name"`
 	DefenseBonus int    `json:"defenseBonus"`
 	ImageURL     string `json:"imageURL"`
 	AttackBonus  int    `json:"attackBonus"`  // Бонус к атаке
@@ -60,6 +62,7 @@ type Character struct {
 
 type Ability struct {
 	Name        string `json:"name"`
+	DisplayName string `json:"display_name"`
 	Type        string `json:"type"`
 	Description string `json:"description"`
 	Range       int    `json:"range"`

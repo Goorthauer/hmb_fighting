@@ -90,7 +90,7 @@ body, html {
 
 .ability-card .info {
     padding: 3px; /* Уменьшено в 2 раза */
-    font-size: 8px; /* Уменьшено в 2 раза */
+    font-size: 6px; /* Уменьшено в 2 раза */
     color: #333;
     background: rgba(255, 255, 255, 0.85);
     height: 58px; /* Уменьшено в 2 раза */
@@ -104,7 +104,7 @@ body, html {
 }
 
 .ability-card .info strong {
-    font-size: 8px; /* Уменьшено в 2 раза */
+    font-size: 7px; /* Уменьшено в 2 раза */
     color: #000;
     margin-bottom: 2px; /* Уменьшено в 2 раза */
 }
