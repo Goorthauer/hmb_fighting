@@ -150,7 +150,14 @@ export function updateAbilityCards(myTeam, data) {
 
     const currentChar = findCharacter(data.teams, data.currentTurn);
     if (currentChar && currentChar.team === myTeam && currentChar.abilities?.length) {
-        currentChar.abilities.forEach(ability => {
+        currentChar.abilities.forEach(abilityID => {
+            console.log(data)
+            const ability = data.abilitiesConfig[abilityID]; // Получаем способность из конфигурации
+            if (!ability) {
+                console.warn(`Ability with ID ${abilityID} not found in AbilitiesConfig`);
+                return;
+            }
+
             const card = document.createElement('div');
             card.classList.add('ability-card');
             if (selectedAbility && selectedAbility.name === ability.name) card.classList.add('selected');
@@ -167,7 +174,6 @@ export function updateAbilityCards(myTeam, data) {
     }
     isUpdatingAbilities = false;
 }
-
 export function updateBattleLog(data) {
     if (!data || !data.teams || !Array.isArray(data.teams)) {
         console.warn('Invalid data in updateBattleLog:', data);

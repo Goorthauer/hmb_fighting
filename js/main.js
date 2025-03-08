@@ -68,7 +68,7 @@ document.getElementById('joinRoomBtn').addEventListener('click', () => {
 
             // Принудительно обновляем интерфейс
             updateCharacterCards(data);
-            updateAbilityCards(myTeam, data);
+            updateAbilityCards(myTeam, data); // Передаём myTeam и data
             drawBoard(data);
             updatePhaseAndProgress(data);
             updateBattleLog(data);

@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -106,9 +107,10 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	mutex.Lock()
 	user := users[clientID]
+	db := NewMockDatabase() // Создаём мок базы данных
 	game, exists := rooms[room]
 	if !exists {
-		game = initGame()
+		game = initGame(db) // Передаём базу в initGame
 		rooms[room] = game
 	}
 	mutex.Unlock()
@@ -174,7 +176,6 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 		switch action.Type {
 		case "move":
-			// Проверяем границы нового поля (16x9)
 			if game.Phase != "move" ||
 				action.Position[0] < 0 || action.Position[0] >= 16 ||
 				action.Position[1] < 0 || action.Position[1] >= 9 ||
@@ -207,9 +208,36 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			if game.Phase != "action" || target == nil || target.Team == currentChar.Team {
 				log.Printf("Invalid ability use by %s on %d", clientID, action.TargetID)
 			} else {
-				for i, ability := range currentChar.Abilities {
-					if ability.Name == action.Ability && distanceToAbility(currentChar.Position, target.Position) <= ability.Range {
-						applyWrestlingMove(game, currentChar, target, ability.Name)
+				ability, exists := game.AbilitiesConfig[strings.ToLower(action.Ability)]
+				if !exists {
+					log.Printf("Ability %s not found in abilities config", action.Ability)
+					continue
+				}
+
+				// Проверяем, есть ли у персонажа эта способность
+				hasAbility := false
+				for _, abilityID := range currentChar.Abilities {
+					if abilityID == action.Ability {
+						hasAbility = true
+						break
+					}
+				}
+
+				if !hasAbility {
+					log.Printf("Character %s does not have ability %s", currentChar.Name, action.Ability)
+					continue
+				}
+				// Проверяем дистанцию
+				if distanceToAbility(currentChar.Position, target.Position) > ability.Range {
+					log.Printf("Ability %s is out of range for character %s", action.Ability, currentChar.Name)
+					continue
+				}
+				// Применяем способность
+				applyWrestlingMove(game, currentChar, target, strings.ToLower(ability.Name))
+
+				// Удаляем способность из списка (если нужно)
+				for i, abilityID := range currentChar.Abilities {
+					if abilityID == action.Ability {
 						currentChar.Abilities = append(currentChar.Abilities[:i], currentChar.Abilities[i+1:]...)
 						break
 					}
@@ -233,24 +261,19 @@ func broadcastGameState(game *Game) {
 	log.Printf("Broadcasting to %d clients", len(game.Connections))
 	for conn, client := range game.Connections {
 		state := GameState{
-			Teams:         game.Teams,
-			CurrentTurn:   game.CurrentTurn,
-			Phase:         game.Phase,
-			Board:         game.Board,
-			TeamID:        client.TeamID,
-			ClientID:      client.ClientID,
-			GameSessionId: game.GameSessionId,
-			WeaponsConfig: game.WeaponsConfig,
-			ShieldsConfig: game.ShieldsConfig,
-			TeamsConfig:   game.TeamsConfig,
+			Teams:           game.Teams,
+			CurrentTurn:     game.CurrentTurn,
+			Phase:           game.Phase,
+			Board:           game.Board,
+			TeamID:          client.TeamID,
+			ClientID:        client.ClientID,
+			GameSessionId:   game.GameSessionId,
+			WeaponsConfig:   game.WeaponsConfig,
+			AbilitiesConfig: game.AbilitiesConfig,
+			ShieldsConfig:   game.ShieldsConfig,
+			TeamsConfig:     game.TeamsConfig,
 		}
-		stateJSON, err := json.Marshal(state)
-		if err != nil {
-			log.Printf("Error marshaling game state for client %s: %v", client.ClientID, err)
-			continue
-		}
-		log.Printf("Sending state to client %s: %s", client.ClientID, string(stateJSON))
-		err = conn.WriteJSON(state)
+		err := conn.WriteJSON(state)
 		if err != nil {
 			log.Printf("Error sending game state to %s: %v", client.ClientID, err)
 			conn.Close()

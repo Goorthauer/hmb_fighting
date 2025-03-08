@@ -19,40 +19,43 @@ type User struct {
 }
 
 type Weapon struct {
-	Name        string `json:"name"`
-	Range       int    `json:"range"`
-	IsTwoHanded bool   `json:"isTwoHanded"`
-	ImageURL    string `json:"imageURL"`
+	Name         string `json:"name"`
+	Range        int    `json:"range"`
+	IsTwoHanded  bool   `json:"isTwoHanded"`
+	ImageURL     string `json:"imageURL"`
+	AttackBonus  int    `json:"attackBonus"`  // Бонус к атаке
+	GrappleBonus int    `json:"grappleBonus"` // Бонус к успешным состояниям борьбы
 }
 
 type Shield struct {
 	Name         string `json:"name"`
 	DefenseBonus int    `json:"defenseBonus"`
 	ImageURL     string `json:"imageURL"`
+	AttackBonus  int    `json:"attackBonus"`  // Бонус к атаке
+	GrappleBonus int    `json:"grappleBonus"` // Бонус к успешным состояниям борьбы
 }
-
 type TeamConfig struct {
 	IconURL string `json:"iconURL"`
 }
 
 type Character struct {
-	ID         int       `json:"id"`
-	Name       string    `json:"name"`
-	Team       int       `json:"team"`
-	HP         int       `json:"hp"`
-	Stamina    int       `json:"stamina"`
-	AttackMin  int       `json:"attackMin"`
-	AttackMax  int       `json:"attackMax"`
-	Defense    int       `json:"defense"`
-	Initiative int       `json:"initiative"`
-	Weapon     string    `json:"weapon"`
-	Shield     string    `json:"shield"`
-	Height     int       `json:"height"`
-	Weight     int       `json:"weight"`
-	Position   [2]int    `json:"position"`
-	Abilities  []Ability `json:"abilities"`
-	Effects    []Effect  `json:"effects"`
-	ImageURL   string    `json:"imageURL"`
+	ID         int      `json:"id"`
+	Name       string   `json:"name"`
+	Team       int      `json:"team"`
+	HP         int      `json:"hp"`
+	Stamina    int      `json:"stamina"`
+	AttackMin  int      `json:"attackMin"`
+	AttackMax  int      `json:"attackMax"`
+	Defense    int      `json:"defense"`
+	Initiative int      `json:"initiative"`
+	Weapon     string   `json:"weapon"`
+	Shield     string   `json:"shield"`
+	Height     int      `json:"height"`
+	Weight     int      `json:"weight"`
+	Position   [2]int   `json:"position"`
+	Abilities  []string `json:"abilities"` // Теперь это список идентификаторов способностей
+	Effects    []Effect `json:"effects"`
+	ImageURL   string   `json:"imageURL"`
 }
 
 type Ability struct {
@@ -72,16 +75,17 @@ type Effect struct {
 }
 
 type GameState struct {
-	Teams         [2]Team           `json:"teams"`
-	CurrentTurn   int               `json:"currentTurn"`
-	Phase         string            `json:"phase"`
-	Board         [16][9]int        `json:"board"` // Обновляем с [20][10] на [16][9]
-	TeamID        int               `json:"teamID"`
-	ClientID      string            `json:"clientID"`
-	GameSessionId string            `json:"gameSessionId"`
-	WeaponsConfig map[string]Weapon `json:"weaponsConfig"`
-	ShieldsConfig map[string]Shield `json:"shieldsConfig"`
-	TeamsConfig   [2]TeamConfig     `json:"teamsConfig"`
+	Teams           [2]Team            `json:"teams"`
+	CurrentTurn     int                `json:"currentTurn"`
+	Phase           string             `json:"phase"`
+	Board           [16][9]int         `json:"board"` // Обновляем с [20][10] на [16][9]
+	TeamID          int                `json:"teamID"`
+	ClientID        string             `json:"clientID"`
+	GameSessionId   string             `json:"gameSessionId"`
+	WeaponsConfig   map[string]Weapon  `json:"weaponsConfig"`
+	AbilitiesConfig map[string]Ability `json:"abilitiesConfig"`
+	ShieldsConfig   map[string]Shield  `json:"shieldsConfig"`
+	TeamsConfig     [2]TeamConfig      `json:"teamsConfig"`
 }
 
 type Team struct {
@@ -106,14 +110,15 @@ type Client struct {
 }
 
 type Game struct {
-	Connections   map[*websocket.Conn]*Client
-	Teams         [2]Team
-	CurrentTurn   int
-	Phase         string
-	Board         [16][9]int // Обновляем с [20][10] на [16][9]
-	GameSessionId string
-	WeaponsConfig map[string]Weapon
-	ShieldsConfig map[string]Shield
-	TeamsConfig   [2]TeamConfig
-	mutex         sync.Mutex
+	Connections     map[*websocket.Conn]*Client
+	Teams           [2]Team
+	CurrentTurn     int
+	Phase           string
+	Board           [16][9]int
+	GameSessionId   string
+	WeaponsConfig   map[string]Weapon
+	ShieldsConfig   map[string]Shield
+	AbilitiesConfig map[string]Ability // Добавляем конфигурацию способностей
+	TeamsConfig     [2]TeamConfig
+	mutex           sync.Mutex
 }

@@ -90,7 +90,7 @@ function handleMouseUp(event, myTeam) {
                         clientID: clientID,
                         characterID: draggedChar.id,
                         targetID: target.id,
-                        ability: selectedAbility.name
+                        ability: selectedAbility.name.toLowerCase()
                     }));
                 } else {
                 }
@@ -113,7 +113,7 @@ function handleClick(event, myTeam) {
 
     const {gridX, gridY} = getGridPosition(event);
     const clientID = localStorage.getItem('clientID');
-    if (gridX >= 0 && gridX < 16 && gridY >= 0 && gridY < 9) { // Обновлено с 20x10 на 16x9
+    if (gridX >= 0 && gridX < 16 && gridY >= 0 && gridY < 9) {
         const charId = gameState.board[gridX][gridY];
         if (charId !== -1 && canAttackOrUseAbility(gridX, gridY, myTeam)) {
             const target = findCharacter(gameState.teams, charId);
@@ -130,9 +130,10 @@ function handleClick(event, myTeam) {
                             clientID: clientID,
                             characterID: charToAct.id,
                             targetID: targetToAct.id,
-                            ability: selectedAbility.name
+                            ability: selectedAbility.name.toLowerCase() // Используем имя способности
                         }));
-                        currentChar.abilities = currentChar.abilities.filter(a => a.name !== selectedAbility.name);
+                        // Удаляем способность из списка (если нужно)
+                        currentChar.abilities = currentChar.abilities.filter(a => a !== selectedAbility.name);
                         setSelectedAbility(null);
                     } else {
                         sendMessage(JSON.stringify({
