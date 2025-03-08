@@ -105,25 +105,26 @@ export function updateCharacterCards(data) {
     isUpdatingCards = false;
 }
 function renderCards(container, chars, data) {
+    container.innerHTML = ''; // Очищаем контейнер
     chars.forEach(char => {
         const card = document.createElement('div');
         card.classList.add('card', `team${char.team}`);
         card.dataset.id = char.id;
         if (selectedCharacter && selectedCharacter.id === char.id) card.classList.add('selected');
         if (char.id === data.currentTurn) card.classList.add('current');
+        if (char.hp <= 0) card.classList.add('dead');
 
         card.innerHTML = `
-            <div class="image" style="background-image: url('${char.imageURL}');">
-                <div class="name">${char.name}</div>
-                <div class="hp-container"><div class="hp-diamond"><div class="hp">${char.hp}</div></div></div>
-            </div>
+            <div class="image" style="background-image: url('${char.imageURL || 'default-image.png'}');"></div>
+            <div class="name">${char.name}</div>
             <div class="info">
-                <div class="stat"><span class="label">Stamina:</span> ${char.stamina}</div>
-                <div class="stat"><span class="label">Attack:</span> ${char.attackMin}-${char.attackMax}</div>
-                <div class="stat"><span class="label">Defense:</span> ${char.defense}</div>
-                <div class="stat"><span class="label">Init:</span> ${char.initiative}</div>
-                <div class="stat"><span class="label">Weapon:</span> ${data.weaponsConfig[char.weapon]?.name || 'None'}</div>
-                <div class="stat"><span class="label">Shield:</span> ${data.shieldsConfig[char.shield]?.name || 'None'}</div>
+                <div class="stat"><i class="fas fa-heartbeat"></i> <span class="label">Sta:</span> ${char.stamina}</div>
+                <div class="stat"><i class="fas fa-skull"></i> <span class="label">Atk:</span> ${char.attackMin}-${char.attackMax}</div>
+                <div class="stat"><i class="fas fa-shield-alt"></i> <span class="label">Def:</span> ${char.defense}</div>
+                <div class="stat"><i class="fas fa-tachometer-alt"></i> <span class="label">Ini:</span> ${char.initiative}</div>
+                <div class="stat"><i class="fas fa-gavel"></i> <span class="label"></span> ${data.weaponsConfig[char.weapon]?.name || 'None'}</div>
+                <div class="stat"><i class="fas fa-shield"></i> <span class="label"></span> ${data.shieldsConfig[char.shield]?.name || 'None'}</div>
+                <div class="hp-container"><div class="hp-diamond"><div class="hp">${char.hp}</div></div></div>
             </div>
         `;
         card.addEventListener('click', () => {

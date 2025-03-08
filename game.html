@@ -3,44 +3,37 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Battle Game</title>
+  <title>Battle Game: Hearthstone meets HoMM3</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 </head>
 <body>
 <!-- Основной игровой интерфейс -->
 <div id="mainContainer">
-  <!-- Левая панель: Карты способностей -->
-  <div id="wrestleCards">
-    <div id="abilityCards"></div>
-  </div>
-
-  <!-- Центральная панель: Игровое поле и информация -->
-  <div id="gameContainer">
-    <!-- Фаза и прогресс -->
-    <div id="phaseContainer">
-      <span class="phase"></span>
-      <span class="progress">
-                <span class="team0"></span>
-                <span class="vs">vs</span>
-                <span class="team1"></span>
-            </span>
-      <button id="endTurnBtn">End Turn</button>
+  <div class="top-section">
+    <div id="wrestleCards">
+      <div id="abilityCards"></div>
     </div>
-
-    <!-- Игровое поле -->
-    <canvas id="gameCanvas" width="1000" height="500"></canvas>
-
-    <!-- Карты персонажей -->
-    <div id="characterCards"></div>
-  </div>
-
-  <!-- Правая панель: Лог битвы -->
-  <div id="rightPanel">
-    <div id="battleLog">
-      <h3>Battle Log</h3>
-      <div id="logEntries"></div>
+    <div id="gameContainer">
+      <canvas id="gameCanvas" width="1000" height="500"></canvas>
+    </div>
+    <div id="rightPanel">
+      <div id="phaseContainer">
+        <span class="phase"></span>
+        <span class="progress">
+          <span class="team0"></span>
+          <span class="vs">vs</span>
+          <span class="team1"></span>
+        </span>
+        <button id="endTurnBtn">End Turn</button>
+      </div>
+      <div id="battleLog">
+        <h3>Battle Log</h3>
+        <div id="logEntries"></div>
+      </div>
     </div>
   </div>
+  <div id="characterCards"></div>
 </div>
 
 <script type="module">
@@ -53,7 +46,6 @@
   // Проверка clientID при загрузке страницы
   const storedClientID = localStorage.getItem('clientID');
   if (!storedClientID) {
-    // Если clientID отсутствует, перенаправляем на страницу регистрации
     window.location.href = 'index.html';
   }
 
