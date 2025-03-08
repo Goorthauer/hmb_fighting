@@ -28,7 +28,7 @@ body, html {
     display: flex;
     gap: 10px;
     flex-grow: 1;
-    overflow: hidden;
+    overflow: visible; /* Убираем ограничение по overflow */
     min-height: 0;
 }
 
@@ -225,9 +225,6 @@ body, html {
     100% { opacity: 1; transform: translateY(0); }
 }
 
-
-
-
 /* Центральная панель: Игровое поле */
 #gameContainer {
     flex-grow: 1;
@@ -278,7 +275,6 @@ body, html {
     gap: 10px;
     overflow: hidden; /* Чтобы содержимое не выходило за пределы */
 }
-
 
 /* Стили для заголовка хода */
 #turnHeader {
@@ -383,8 +379,6 @@ body, html {
     100% { text-shadow: 0 0 10px rgba(255, 215, 0, 0.7); }
 }
 
-
-
 #phaseContainer {
     flex-shrink: 0; /* Запрещаем сжиматься */
     padding: 8px;
@@ -462,19 +456,20 @@ body, html {
 
 /* Карты персонажей */
 #characterCards {
-    width: 100%;
+    width: 100%; /* Растягиваем на всю ширину контейнера */
     display: flex;
     gap: 15px;
     padding: 15px;
     background: rgba(255, 255, 255, 0.1);
     border-radius: 12px;
-    overflow-x: auto;
+    overflow-x: auto; /* Включаем горизонтальный скролл */
     overflow-y: hidden;
     white-space: nowrap;
     height: 260px;
     flex-shrink: 0;
-    scrollbar-width: thin; /* Для Firefox */
-    scrollbar-color: #b8860b rgba(255, 255, 255, 0.1); /* Для Firefox */
+    box-sizing: border-box; /* Учитываем padding в ширине */
+    scrollbar-width: thin;
+    scrollbar-color: #b8860b rgba(255, 255, 255, 0.1);
 }
 
 /* Стилизация полосы прокрутки для WebKit (Chrome, Safari) */
@@ -496,12 +491,11 @@ body, html {
     background: #ffd700;
 }
 
-/* Стили карточек остаются без изменений */
-
 /* Стили для карточки персонажа */
 .card {
-    width: 180px;
-    height: 240px;
+    width: 200px;
+    min-width: 200px;
+    height: 250px;
     background: linear-gradient(135deg, #f5e8c7, #d9c9a1);
     border: 4px solid #b8860b;
     border-radius: 14px;
@@ -554,9 +548,10 @@ body, html {
 
 .card .image {
     width: 100%;
-    height: 120px;
-    background-size: cover;
+    height: 200px; /* Фиксированная высота остаётся */
+    background-size: cover; /* Изображение помещается полностью */
     background-position: center;
+    background-repeat: no-repeat; /* Убираем повторение */
     border-bottom: 3px solid #b8860b;
     position: relative;
     box-shadow: inset 0 -5px 10px rgba(0, 0, 0, 0.2);
@@ -576,17 +571,24 @@ body, html {
 
 .card .info {
     padding: 6px;
-    font-size: 10px;
     color: #333;
     background: rgba(255, 255, 255, 0.85);
-    height: 116px;
     display: flex;
     flex-direction: column;
-    gap: 4px;
     text-align: left;
     border-top: 1px solid #b8860b;
     overflow: hidden;
     position: relative;
+    font-size: 9px;
+    height: 156px;
+}
+
+.card .stats-container {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: 10px;
+    row-gap: 3px;
+    flex-grow: 1;
 }
 
 .card .stat {
@@ -597,6 +599,11 @@ body, html {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    width: calc(50% - 5px); /* Две колонки */
+}
+
+.card .stat.full-width {
+    width: 100%; /* Оружие и щит на всю ширину */
 }
 
 .card .stat i {
@@ -717,6 +724,7 @@ button:disabled {
         max-width: 300px;
     }
     #characterCards {
+        max-width: 915px; /* 5 карточек: (140px + 15px) * 5 */
         height: 200px;
     }
     .card {
@@ -736,41 +744,4 @@ button:disabled {
     #activeEffects {
         width: 840px;
     }
-}
-
-@media (max-width: 768px) {
-    .card {
-        width: 120px;
-        height: 160px;
-    }
-    .card .image {
-        height: 80px;
-    }
-    .card .info {
-        font-size: 9px;
-        height: 76px;
-    }
-    .card .hp-diamond {
-        width: 24px;
-        height: 24px;
-    }
-    .card .hp, .card .name {
-        font-size: 11px;
-    }
-    #characterCards {
-        height: 180px;
-    }
-    #gameCanvas {
-        width: 720px; /* 16 * 60 * 0.75 */
-        height: 405px; /* 9 * 60 * 0.75 */
-    }
-    #activeEffects {
-        width: 720px;
-    }
-    #phaseContainer {
-        padding: 6px;
-    }
-    .phase { font-size: 12px; }
-    .progress { font-size: 10px; }
-    button { font-size: 10px; padding: 5px 10px; }
 }
