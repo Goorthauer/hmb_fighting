@@ -13,81 +13,43 @@ const DEFAULT_IMAGES = {
     icon: '/static/icons/default.png'
 };
 
-export function preloadImages(data) {
-    if (!data || !data.teams || !data.weaponsConfig || !data.shieldsConfig || !data.teamsConfig) {
-        console.error('Invalid data for preloading images:', data);
-        return Promise.reject('Invalid data');
+// Функция для динамической загрузки изображения
+function loadImage(url, defaultUrl) {
+    if (!url || url.trim() === '') {
+        console.warn(`Image URL is empty or invalid, using default: ${defaultUrl}`);
+        url = defaultUrl;
     }
-    console.log('Preloading images with data:', data);
-
-    const imagePromises = [];
-
-    function loadImage(url, defaultUrl) {
-        if (!url || url.trim() === '') {
-            console.warn(`Image URL is empty or invalid, using default: ${defaultUrl}`);
-            url = defaultUrl;
-        }
-        if (!imagesCache[url]) {
-            const img = new Image();
-            const promise = new Promise((resolve, reject) => {
-                img.onload = () => {
-                    console.log(`Image loaded: ${url}`);
-                    resolve(img);
-                };
-                img.onerror = () => {
-                    console.warn(`Failed to load image: ${url}, falling back to ${defaultUrl}`);
-                    if (url !== defaultUrl) {
-                        img.src = defaultUrl;
-                        img.onload = () => {
-                            console.log(`Default image loaded: ${defaultUrl}`);
-                            resolve(img);
-                        };
-                        img.onerror = () => {
-                            console.error(`Failed to load default image: ${defaultUrl}`);
-                            reject(new Error(`Failed to load default image: ${defaultUrl}`));
-                        };
-                    } else {
-                        reject(new Error(`Failed to load image: ${url}`));
-                    }
-                };
-            });
-            img.src = url;
-            imagesCache[url] = img;
-            return promise;
-        }
-        return Promise.resolve(imagesCache[url]);
+    if (!imagesCache[url]) {
+        const img = new Image();
+        img.src = url;
+        img.onload = () => {
+            console.log(`Image loaded: ${url}`);
+            // Перерисовываем доску после загрузки, если игра уже началась
+            if (gameState) {
+                drawBoard(gameState);
+            }
+        };
+        img.onerror = () => {
+            console.warn(`Failed to load image: ${url}, falling back to ${defaultUrl}`);
+            if (url !== defaultUrl) {
+                img.src = defaultUrl;
+                img.onload = () => console.log(`Default image loaded: ${defaultUrl}`);
+                img.onerror = () => console.error(`Failed to load default image: ${defaultUrl}`);
+            } else {
+                console.error(`Failed to load image: ${url}`);
+            }
+        };
+        imagesCache[url] = img;
     }
-
-    // Загружаем только иконки команд и другие ресурсы, без char.imageURL
-    data.teamsConfig.forEach((teamConfig) => {
-        imagePromises.push(loadImage(teamConfig.iconURL, DEFAULT_IMAGES.icon));
-    });
-    data.teams.forEach((team) => {
-        team.characters.forEach((char) => {
-            char.abilities.forEach((ability) => {
-                imagePromises.push(loadImage(ability.imageURL, DEFAULT_IMAGES.ability));
-            });
-        });
-    });
-    Object.entries(data.weaponsConfig).forEach(([_, weapon]) => {
-        imagePromises.push(loadImage(weapon.imageURL, DEFAULT_IMAGES.weapon));
-    });
-    Object.entries(data.shieldsConfig).forEach(([_, shield]) => {
-        imagePromises.push(loadImage(shield.imageURL, DEFAULT_IMAGES.shield));
-    });
-
-    return Promise.all(imagePromises)
-        .then(() => console.log('All images preloaded successfully'))
-        .catch((err) => console.error('Error preloading images:', err));
+    return imagesCache[url];
 }
-
-// Убираем отдельную функцию loadImage, так как она используется только в preloadImages
 
 export function drawBoard(data) {
     if (!ctx) {
         console.error('Canvas context (ctx) is not initialized');
         return;
     }
+
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
     // Отрисовка сетки
@@ -175,7 +137,7 @@ export function drawBoard(data) {
         }
     }
 
-    // Отрисовка персонажей на поле с иконками команд
+    // Отрисовка персонажей на поле
     for (let x = 0; x < 16; x++) {
         for (let y = 0; y < 9; y++) {
             const charId = data.board[x][y];
@@ -187,31 +149,27 @@ export function drawBoard(data) {
                 }
                 const teamIconURL = data.teamsConfig[char.team].iconURL;
                 console.log(`Drawing ${char.name} with team iconURL: ${teamIconURL}`);
-                const charImage = imagesCache[teamIconURL] || imagesCache[DEFAULT_IMAGES.icon];
+                const charImage = loadImage(teamIconURL, DEFAULT_IMAGES.icon);
                 if (charImage && charImage.complete && charImage.naturalWidth !== 0) {
-                    // Отрисовка иконки в центре клетки (40x40px)
                     const iconSize = 40;
                     const offsetX = (cellWidth - iconSize) / 2;
                     const offsetY = (cellHeight - 15 - iconSize) / 2;
                     ctx.drawImage(charImage, x * cellWidth + offsetX, y * cellHeight + offsetY, iconSize, iconSize);
                 } else {
-                    console.warn(`Team icon for ${char.name} is not valid:`, charImage);
+                    console.warn(`Team icon for ${char.name} is not yet loaded or invalid:`, charImage);
                 }
-                // Отрисовка рамки с именем (нижние 15px клетки)
                 ctx.fillStyle = char.team === 0 ? 'rgba(128, 0, 128, 0.8)' : 'rgba(255, 215, 0, 0.8)';
                 ctx.fillRect(x * cellWidth, y * cellHeight + cellHeight - 15, cellWidth, 15);
                 ctx.strokeStyle = char.team === 0 ? '#800080' : '#ffd700';
                 ctx.lineWidth = 1;
                 ctx.strokeRect(x * cellWidth, y * cellHeight + cellHeight - 15, cellWidth, 15);
 
-                // Текст имени
                 ctx.fillStyle = '#fff';
                 ctx.font = '12px Arial';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillText(char.name, x * cellWidth + cellWidth / 2, y * cellHeight + cellHeight - 7.5);
 
-                // Подсветка текущего хода
                 if (char.id === data.currentTurn) {
                     ctx.strokeStyle = 'yellow';
                     ctx.lineWidth = 3;
@@ -226,7 +184,7 @@ export function drawBoard(data) {
     if (movingCharacter) {
         const char = movingCharacter;
         const teamIconURL = data.teamsConfig[char.team].iconURL;
-        const charImage = imagesCache[teamIconURL] || imagesCache[DEFAULT_IMAGES.icon];
+        const charImage = loadImage(teamIconURL, DEFAULT_IMAGES.icon);
         if (charImage && charImage.complete && charImage.naturalWidth !== 0) {
             const iconSize = 40;
             const offsetX = (cellWidth - iconSize) / 2;
@@ -248,7 +206,7 @@ export function drawBoard(data) {
     if (draggingCharacter) {
         const char = draggingCharacter;
         const teamIconURL = data.teamsConfig[char.team].iconURL;
-        const charImage = imagesCache[teamIconURL] || imagesCache[DEFAULT_IMAGES.icon];
+        const charImage = loadImage(teamIconURL, DEFAULT_IMAGES.icon);
         if (charImage && charImage.complete && charImage.naturalWidth !== 0) {
             const iconSize = 40;
             const offsetX = (cellWidth - iconSize) / 2;
