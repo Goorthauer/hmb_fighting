@@ -120,10 +120,10 @@ function renderCards(container, chars, data) {
             <div class="image" style="background-image: url('${char.imageURL || 'default-image.png'}');"></div>
             <div class="name">${char.name}</div>
             <div class="info">
-                <div class="stat"><i class="fas fa-heartbeat"></i> <span class="label">Sta:</span> ${char.stamina}</div>
-                <div class="stat"><i class="fas fa-skull"></i> <span class="label">Atk:</span> ${char.attackMin}-${char.attackMax}</div>
-                <div class="stat"><i class="fas fa-shield-alt"></i> <span class="label">Def:</span> ${char.defense}</div>
-                <div class="stat"><i class="fas fa-tachometer-alt"></i> <span class="label">Ini:</span> ${char.initiative}</div>
+                <div class="stat"><i class="fas fa-wheelchair-move"></i> <span class="label">Скорость:</span> ${char.stamina}</div>
+                <div class="stat"><i class="fas fa-skull"></i> <span class="label">Атака:</span> ${char.attackMin}-${char.attackMax}</div>
+                <div class="stat"><i class="fas fa-shield-alt"></i> <span class="label">Защита:</span> ${char.defense}</div>
+                <div class="stat"><i class="fas fa-rocket"></i> <span class="label">Инициатива:</span> ${char.initiative}</div>
                 <div class="stat"><i class="fas fa-gavel"></i> <span class="label"></span> ${data.weaponsConfig[char.weapon]?.name || 'None'}</div>
                 <div class="stat"><i class="fas fa-shield"></i> <span class="label"></span> ${data.shieldsConfig[char.shield]?.name || 'None'}</div>
                 <div class="hp-container"><div class="hp-diamond"><div class="hp">${char.hp}</div></div></div>
@@ -136,7 +136,6 @@ function renderCards(container, chars, data) {
         container.appendChild(card);
     });
 }
-
 export function updateAbilityCards(myTeam, data) {
     if (isUpdatingAbilities) return;
     isUpdatingAbilities = true;
@@ -149,28 +148,65 @@ export function updateAbilityCards(myTeam, data) {
     abilityCards.innerHTML = '';
 
     const currentChar = findCharacter(data.teams, data.currentTurn);
-    if (currentChar && currentChar.team === myTeam && currentChar.abilities?.length) {
-        currentChar.abilities.forEach(abilityID => {
-            console.log(data)
-            const ability = data.abilitiesConfig[abilityID]; // Получаем способность из конфигурации
-            if (!ability) {
-                console.warn(`Ability with ID ${abilityID} not found in AbilitiesConfig`);
-                return;
+    if (currentChar && currentChar.team === myTeam) {
+        if (currentChar.abilities?.length) {
+            // Отрисовываем способности как полноценные карточки
+            currentChar.abilities.forEach((abilityID) => {
+                const ability = data.abilitiesConfig[abilityID];
+                if (!ability) {
+                    console.warn(`Ability with ID ${abilityID} not found in AbilitiesConfig`);
+                    return;
+                }
+
+                const card = document.createElement('div');
+                card.classList.add('ability-card');
+                if (selectedAbility && selectedAbility.name === ability.name) card.classList.add('selected');
+                card.innerHTML = `
+                    <div class="image" style="background-image: url('${ability.imageURL}');"></div>
+                    <div class="info">
+                        <strong>${ability.name}</strong><br>
+                        ${ability.description || 'No description'}
+                    </div>
+                `;
+                card.addEventListener('click', () => {
+                    setSelectedAbility(ability);
+                    updateAbilityCards(myTeam, data);
+                });
+                abilityCards.appendChild(card);
+            });
+
+            // Отрисовываем рубашки веером чуть ниже
+            const stack = document.createElement('div');
+            stack.classList.add('no-abilities-stack');
+
+            // Создаём 3 рубашки
+            for (let i = 0; i < 3; i++) {
+                const card = document.createElement('div');
+                card.classList.add('no-abilities-card');
+                card.innerHTML = `
+                    <div class="image"></div>
+                `;
+                stack.appendChild(card);
             }
 
-            const card = document.createElement('div');
-            card.classList.add('ability-card');
-            if (selectedAbility && selectedAbility.name === ability.name) card.classList.add('selected');
-            card.innerHTML = `
-                <div class="image" style="background-image: url('${ability.imageURL}');"></div>
-                <div class="info"><strong>${ability.name}</strong><br>${ability.description || 'No description'}</div>
-            `;
-            card.addEventListener('click', () => {
-                setSelectedAbility(ability);
-                updateAbilityCards(myTeam, data);
-            });
-            abilityCards.appendChild(card);
-        });
+            abilityCards.appendChild(stack);
+        } else {
+            // Если способностей нет, отрисовываем только рубашки
+            const stack = document.createElement('div');
+            stack.classList.add('no-abilities-stack');
+
+            // Создаём 3 рубашки
+            for (let i = 0; i < 3; i++) {
+                const card = document.createElement('div');
+                card.classList.add('no-abilities-card');
+                card.innerHTML = `
+                    <div class="image"></div>
+                `;
+                stack.appendChild(card);
+            }
+
+            abilityCards.appendChild(stack);
+        }
     }
     isUpdatingAbilities = false;
 }

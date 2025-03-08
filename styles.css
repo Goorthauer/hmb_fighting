@@ -53,45 +53,166 @@ body, html {
     gap: 8px;
 }
 
+
+
+/* Стили для карточек способностей (уменьшенные в 2 раза) */
 .ability-card {
-    width: 100%;
-    height: 120px;
-    background: linear-gradient(135deg, #f5f5f5, #d0d0d0);
-    border: 3px solid #ffd700;
-    border-radius: 12px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    width: 90px; /* Уменьшено в 2 раза */
+    height: 120px; /* Уменьшено в 2 раза */
+    background: linear-gradient(135deg, #f5e8c7, #d9c9a1);
+    border: 2px solid #b8860b; /* Уменьшено в 2 раза */
+    border-radius: 7px; /* Уменьшено в 2 раза */
+    box-shadow: 0 3px 7.5px rgba(0, 0, 0, 0.4), inset 0 0 6px rgba(255, 215, 0, 0.3); /* Уменьшено в 2 раза */
     cursor: pointer;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+    display: flex;
+    flex-direction: column;
     position: relative;
     overflow: hidden;
+    transform: perspective(250px) rotateX(2deg); /* Уменьшено в 2 раза */
+    animation: cardDraw 0.5s ease-out;
 }
 
-.ability-card:hover:not(.placeholder) {
-    transform: scale(1.05);
-    box-shadow: 0 0 20px rgba(255, 215, 0, 0.7);
-}
-
-.ability-card.selected {
-    border-color: #ff4500;
-    box-shadow: 0 0 15px rgba(255, 69, 0, 0.7);
+.ability-card:hover:not(.dead) {
+    transform: scale(1.1) perspective(250px) rotateX(0deg); /* Уменьшено в 2 раза */
+    box-shadow: 0 5px 12.5px rgba(0, 0, 0, 0.5), 0 0 10px rgba(255, 215, 0, 0.8); /* Уменьшено в 2 раза */
 }
 
 .ability-card .image {
     width: 100%;
-    height: 60px;
+    height: 60px; /* Уменьшено в 2 раза */
     background-size: cover;
     background-position: center;
-    border-bottom: 2px solid #ffd700;
+    border-bottom: 1.5px solid #b8860b; /* Уменьшено в 2 раза */
+    position: relative;
+    box-shadow: inset 0 -2.5px 5px rgba(0, 0, 0, 0.2); /* Уменьшено в 2 раза */
 }
 
 .ability-card .info {
-    padding: 5px;
-    font-size: 10px;
-    background: rgba(0, 0, 0, 0.7);
-    color: white;
-    text-align: center;
-    height: 58px;
+    padding: 3px; /* Уменьшено в 2 раза */
+    font-size: 8px; /* Уменьшено в 2 раза */
+    color: #333;
+    background: rgba(255, 255, 255, 0.85);
+    height: 58px; /* Уменьшено в 2 раза */
+    display: flex;
+    flex-direction: column;
+    gap: 2px; /* Уменьшено в 2 раза */
+    text-align: left;
+    border-top: 0.5px solid #b8860b; /* Уменьшено в 2 раза */
+    overflow: hidden;
+    position: relative;
 }
+
+.ability-card .info strong {
+    font-size: 8px; /* Уменьшено в 2 раза */
+    color: #000;
+    margin-bottom: 2px; /* Уменьшено в 2 раза */
+}
+
+/* Стили для стопки рубашек (MTG-стиль, уменьшенные в 2 раза) */
+.no-abilities-stack {
+    position: relative;
+    width: 100%;
+    height: 130px; /* Уменьшено в 2 раза */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    perspective: 500px; /* Уменьшено в 2 раза */
+    margin-top: 10px; /* Уменьшено в 2 раза */
+}
+
+.no-abilities-stack .no-abilities-card {
+    position: absolute;
+    width: 90px; /* Уменьшено в 2 раза */
+    height: 120px; /* Уменьшено в 2 раза */
+    background: linear-gradient(160deg, #1a1a1a, #0d0d0d);
+    border: 2px solid #444; /* Уменьшено в 2 раза */
+    border-radius: 6px; /* Уменьшено в 2 раза */
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.6); /* Уменьшено в 2 раза */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transform-style: preserve-3d;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    animation: fadeIn 0.5s ease-in-out;
+    overflow: hidden;
+}
+
+/* Рамка карточки */
+.no-abilities-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: 1px solid rgba(255, 255, 255, 0.1); /* Уменьшено в 2 раза */
+    border-radius: 4px; /* Уменьшено в 2 раза */
+    pointer-events: none;
+}
+
+/* Текстура фона */
+.no-abilities-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.05), transparent 70%);
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Позиционируем карточки веером */
+.no-abilities-stack .no-abilities-card:nth-child(1) {
+    transform: rotate(-5deg) translateY(0);
+    z-index: 3;
+}
+
+.no-abilities-stack .no-abilities-card:nth-child(2) {
+    transform: rotate(0deg) translateY(2.5px); /* Уменьшено в 2 раза */
+    z-index: 2;
+    opacity: 0.8;
+}
+
+.no-abilities-stack .no-abilities-card:nth-child(3) {
+    transform: rotate(5deg) translateY(5px); /* Уменьшено в 2 раза */
+    z-index: 1;
+    opacity: 0.6;
+}
+
+/* Изображение рубашки */
+.no-abilities-card .image {
+    width: 100%;
+    height: 100%;
+    background-image: url('./static/abilities/no_abilities.png'); /* Обновлённый путь */
+    background-size: cover;
+    background-position: center;
+    filter: brightness(0.9) contrast(1.2);
+    opacity: 0.9;
+    z-index: 1;
+}
+
+/* Анимация для лёгкого "дыхания" стопки */
+@keyframes stackBreath {
+    0% { transform: rotate(-5deg) translateY(0); }
+    50% { transform: rotate(-5deg) translateY(-2.5px); } /* Уменьшено в 2 раза */
+    100% { transform: rotate(-5deg) translateY(0); }
+}
+
+.no-abilities-stack .no-abilities-card:nth-child(1) {
+    animation: stackBreath 2s infinite ease-in-out;
+}
+
+/* Анимация для появления карточек */
+@keyframes fadeIn {
+    0% { opacity: 0; transform: translateY(10px); } /* Уменьшено в 2 раза */
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+
+
 
 /* Центральная панель: Игровое поле */
 #gameContainer {
