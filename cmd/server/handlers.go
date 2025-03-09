@@ -13,7 +13,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// Middleware для включения CORS
 func enableCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -27,22 +26,18 @@ func enableCORS(next http.Handler) http.Handler {
 	})
 }
 
-// Генерация уникального ClientID
 func generateClientID() string {
 	return fmt.Sprintf("%d-%d", time.Now().UnixNano(), rand.Intn(1000))
 }
 
-// Структура Handler для хранения подключения к базе данных
 type Handler struct {
 	db Database
 }
 
-// Конструктор для Handler
 func NewHandler(db Database) *Handler {
 	return &Handler{db: db}
 }
 
-// Обработка регистрации пользователя
 func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
 	var currentUser User
 	if err := json.NewDecoder(r.Body).Decode(&currentUser); err != nil {
@@ -54,14 +49,13 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Получаем пользователя из базы данных
 	user, err := h.db.GetUserByEmail(currentUser.Email)
 	if err != nil {
 		http.Error(w, "Failed to get user", http.StatusInternalServerError)
 		return
 	}
 
-	if user.Email == "" { // Если пользователь не найден
+	if user.Email == "" {
 		user = currentUser
 		user.ID = generateClientID()
 	}
@@ -72,7 +66,6 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Сохраняем пользователя с refresh токеном
 	err = h.db.SetUser(tokenPair.RefreshToken, user)
 	if err != nil {
 		http.Error(w, "Failed to save user with refresh token", http.StatusInternalServerError)
@@ -94,7 +87,6 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Registered user: %s (%s) with ClientID: %s", user.Name, user.Email, response.ClientID)
 }
 
-// Обработка обновления токена
 func (h *Handler) handleRefresh(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		RefreshToken string `json:"refreshToken"`
@@ -116,7 +108,6 @@ func (h *Handler) handleRefresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Обновляем refresh токен в базе данных
 	err = h.db.SetUser(tokenPair.RefreshToken, user)
 	if err != nil {
 		http.Error(w, "Failed to update refresh token", http.StatusInternalServerError)
@@ -137,7 +128,6 @@ func (h *Handler) handleRefresh(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// Обработка проверки клиента
 func (h *Handler) handleCheckClient(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -172,7 +162,6 @@ func (h *Handler) handleCheckClient(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Checked clientID: %s, valid: %v", req.ClientID, exists)
 }
 
-// Обработка создания комнаты
 func (h *Handler) handleCreateRoom(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		AccessToken string `json:"accessToken"`
@@ -202,7 +191,6 @@ func (h *Handler) handleCreateRoom(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Room %s created by %s", game.GameSessionId, claims.ClientID)
 }
 
-// Обработка рестарта комнаты
 func (h *Handler) handleRestart(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		AccessToken string `json:"accessToken"`
@@ -242,8 +230,16 @@ func (h *Handler) handleRestart(w http.ResponseWriter, r *http.Request) {
 	}
 	for teamID := range game.Teams {
 		for i := range game.Teams[teamID].Characters {
-			game.Teams[teamID].Characters[i].HP = 10
-			game.Teams[teamID].Characters[i].Position = [2]int{-1, -1}
+			// Сбрасываем HP и позицию, но сохраняем эффекты Titan Armour
+			char := &game.Teams[teamID].Characters[i]
+			char.HP = 100
+			if char.IsTitanArmour {
+				char.HP -= 5
+				if char.HP < 1 {
+					char.HP = 1
+				}
+			}
+			char.Position = [2]int{-1, -1}
 		}
 	}
 	game.mutex.Unlock()
@@ -253,7 +249,6 @@ func (h *Handler) handleRestart(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Room %s restarted by %s", req.RoomID, claims.ClientID)
 }
 
-// Обработка WebSocket соединения
 func (h *Handler) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	room := r.URL.Query().Get("room")
 	accessToken := r.URL.Query().Get("accessToken")
@@ -355,9 +350,6 @@ func (h *Handler) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Остальные функции (handleSetupPhase, handleGamePhase, broadcastGameState и т.д.) остаются без изменений.
-
-// Обработка фазы настройки
 func handleSetupPhase(game *Game, client *Client, action Action) {
 	if action.Type == "place" && client.TeamID >= 0 {
 		char := findCharacter(game, action.CharacterID)
@@ -393,7 +385,6 @@ func handleSetupPhase(game *Game, client *Client, action Action) {
 	}
 }
 
-// Обработка игровой фазы
 func handleGamePhase(game *Game, client *Client, action Action, claims *Claims) {
 	currentChar := findCharacter(game, game.CurrentTurn)
 	if currentChar == nil || currentChar.Team != client.TeamID {
@@ -414,7 +405,6 @@ func handleGamePhase(game *Game, client *Client, action Action, claims *Claims) 
 	}
 }
 
-// Обработка действия перемещения
 func handleMoveAction(game *Game, currentChar *Character, action Action) {
 	if game.Phase == "move" && action.Position[0] >= 0 && action.Position[0] < 16 && action.Position[1] >= 0 && action.Position[1] < 9 {
 		if game.Board[action.Position[0]][action.Position[1]] == -1 {
@@ -432,7 +422,6 @@ func handleMoveAction(game *Game, currentChar *Character, action Action) {
 	}
 }
 
-// Обработка действия атаки
 func handleAttackAction(game *Game, currentChar *Character, action Action) {
 	target := findCharacter(game, action.TargetID)
 	if (game.Phase == "move" || game.Phase == "action") && target != nil && target.Team != currentChar.Team {
@@ -449,7 +438,6 @@ func handleAttackAction(game *Game, currentChar *Character, action Action) {
 	}
 }
 
-// Обработка действия способности
 func handleAbilityAction(game *Game, currentChar *Character, action Action) {
 	target := findCharacter(game, action.TargetID)
 	if game.Phase == "action" && target != nil && target.Team != currentChar.Team {
@@ -467,7 +455,6 @@ func handleAbilityAction(game *Game, currentChar *Character, action Action) {
 	}
 }
 
-// Трансляция состояния игры всем клиентам
 func broadcastGameState(game *Game) {
 	game.mutex.Lock()
 	defer game.mutex.Unlock()
@@ -508,7 +495,6 @@ func broadcastGameState(game *Game) {
 	}
 }
 
-// Валидация токена
 func validateToken(tokenString string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 		return jwtKey, nil

@@ -940,3 +940,35 @@ body, html {
     background: linear-gradient(135deg, #ff8a8a, #f44336);
     transform: scale(1.05);
 }
+
+.titan-icon {
+    font-size: 1.2em;
+    color: #b0b0b0; /* Серый "металлический" цвет */
+    text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+}
+
+.titan-armour {
+    color: #d4a017; /* Золотистый оттенок для "титанового" эффекта */
+    font-weight: bold;
+    text-shadow: 0 0 5px rgba(212, 160, 23, 0.7);
+    background: linear-gradient(45deg, #333, #555);
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.stat {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.stat i {
+    color: #4dabf7; /* Голубой акцент для иконок */
+}
+
+.stat.full-width {
+    margin-top: 5px;
+    padding: 3px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}

@@ -8,7 +8,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// initGame создаёт новую игру, получая данные из базы
 func initGame(db Database) *Game {
 	weaponsConfig, err := db.GetWeapons()
 	if err != nil {
@@ -39,7 +38,21 @@ func initGame(db Database) *Game {
 	secondCharactersTeam := make([]Character, 0)
 	for _, char := range characters {
 		char.SetAbilities(abilitiesConfig)
-		char.Position = [2]int{-1, -1} // Убираем дефолтную расстановку
+		char.Position = [2]int{-1, -1}
+		// Применяем эффекты Titan Armour при инициализации
+		if char.IsTitanArmour {
+			char.Wrestling += 1
+			char.Stamina += 1
+			char.Initiative += 1
+			char.Defense -= 2
+			char.HP -= 5
+			if char.HP < 1 {
+				char.HP = 1 // Минимальное значение HP
+			}
+			if char.Defense < 0 {
+				char.Defense = 0 // Минимальное значение защиты
+			}
+		}
 		if char.Team == 0 {
 			firstCharactersTeam = append(firstCharactersTeam, char)
 		} else if char.Team == 1 {
@@ -60,20 +73,18 @@ func initGame(db Database) *Game {
 		TeamsConfig:     teamsConfig,
 		Teams:           teams,
 		AbilitiesConfig: abilitiesConfig,
-		CurrentTurn:     -1, // Нет текущего хода в setup
+		CurrentTurn:     -1,
 		Phase:           "setup",
 		Players:         make(map[int]string),
 		Board:           [16][9]int{},
 	}
 
-	// Инициализация пустой доски
 	for i := range game.Board {
 		for j := range game.Board[i] {
 			game.Board[i][j] = -1
 		}
 	}
 
-	// Применяем бонусы щитов и оружия, но не размещаем на доске
 	for _, team := range game.Teams {
 		for i := range team.Characters {
 			char := &team.Characters[i]
@@ -92,7 +103,6 @@ func initGame(db Database) *Game {
 	return game
 }
 
-// Остальные функции без изменений
 func findCharacter(game *Game, id int) *Character {
 	for i := range game.Teams {
 		for j := range game.Teams[i].Characters {
@@ -134,10 +144,14 @@ func calculateDamage(attacker, target *Character, game *Game) int {
 		totalDefense += effect.DefenseMod
 	}
 
+	// Учитываем разницу между Attack и Defense
+	attackDefenseDiff := attacker.Attack - totalDefense
+	baseDamage += attackDefenseDiff
+
 	// Добавляем бонусы от оружия и щита
 	baseDamage += weapon.AttackBonus + shield.AttackBonus
 
-	damage := baseDamage - totalDefense
+	damage := baseDamage
 	if damage < 0 {
 		damage = 0
 	}
@@ -150,7 +164,7 @@ func calculateDamage(attacker, target *Character, game *Game) int {
 		damage = 0
 	}
 
-	log.Printf("Damage calculation: base=%d, defense=%d, surroundingBoost=%d, total=%d", baseDamage, totalDefense, damageBoost, damage)
+	log.Printf("Damage calculation: base=%d, attackDefenseDiff=%d, defense=%d, surroundingBoost=%d, total=%d", baseDamage, attackDefenseDiff, totalDefense, damageBoost, damage)
 	return damage
 }
 
@@ -160,7 +174,12 @@ func calculateDamageAfterWrestle(attacker, target *Character, game *Game) int {
 	for _, effect := range target.Effects {
 		totalDefense += effect.DefenseMod
 	}
-	damage := baseDamage - totalDefense
+
+	// Учитываем разницу между Attack и Defense
+	attackDefenseDiff := attacker.Attack - totalDefense
+	baseDamage += attackDefenseDiff
+
+	damage := baseDamage
 	if damage < 0 {
 		damage = 0
 	}
@@ -173,7 +192,7 @@ func calculateDamageAfterWrestle(attacker, target *Character, game *Game) int {
 		damage = 0
 	}
 
-	log.Printf("Damage calculation: base=%d, defense=%d, surroundingBoost=%d, total=%d", baseDamage, totalDefense, damageBoost, damage)
+	log.Printf("Damage calculation after wrestle: base=%d, attackDefenseDiff=%d, defense=%d, surroundingBoost=%d, total=%d", baseDamage, attackDefenseDiff, totalDefense, damageBoost, damage)
 	return damage
 }
 
@@ -193,16 +212,20 @@ func applyWrestlingMove(game *Game, attacker, target *Character, moveName string
 	weapon := game.WeaponsConfig[attacker.Weapon]
 	shield := game.ShieldsConfig[attacker.Shield]
 
-	successChance := 15
-	partialSuccessChance := 20
+	// Новая формула с учетом Wrestling
+	wrestlingDiff := attacker.Wrestling - target.Wrestling
+	successChance := 25 + wrestlingDiff*5 // Базовый шанс успеха увеличивается или уменьшается на 5% за каждый пункт разницы
+	partialSuccessChance := 25
 	nothingChance := 25
-	failureChance := 20
-	totalFailureChance := 10
+	failureChance := 15 - wrestlingDiff*2      // Уменьшаем шанс провала при высокой разнице
+	totalFailureChance := 10 - wrestlingDiff*3 // Уменьшаем шанс полного провала
 
+	// Модификаторы от роста и веса
 	heightDiff := float64(attacker.Height-target.Height) / 10.0
 	weightDiff := float64(attacker.Weight-target.Weight) / 10.0
 	mod := int(heightDiff+weightDiff) * 5
 
+	// Учитываем окружающих врагов
 	surroundingEnemies := countSurroundingEnemies(game, target)
 	successBoost := surroundingEnemies * 5
 
@@ -212,8 +235,12 @@ func applyWrestlingMove(game *Game, attacker, target *Character, moveName string
 	failureChance -= mod / 2
 	totalFailureChance -= mod / 2
 
+	// Ограничиваем минимальные и максимальные значения
 	if successChance < 5 {
 		successChance = 5
+	}
+	if successChance > 90 {
+		successChance = 90
 	}
 	if partialSuccessChance < 5 {
 		partialSuccessChance = 5
@@ -225,19 +252,20 @@ func applyWrestlingMove(game *Game, attacker, target *Character, moveName string
 		totalFailureChance = 5
 	}
 
+	// Нормализуем проценты до 100
 	total := successChance + partialSuccessChance + nothingChance + failureChance + totalFailureChance
 	if total != 100 {
 		scale := float64(100) / float64(total)
 		successChance = int(float64(successChance) * scale)
-		nothingChance = int(float64(nothingChance) * scale)
 		partialSuccessChance = int(float64(partialSuccessChance) * scale)
+		nothingChance = int(float64(nothingChance) * scale)
 		failureChance = int(float64(failureChance) * scale)
-		totalFailureChance = 100 - successChance - partialSuccessChance - failureChance - nothingChance
+		totalFailureChance = 100 - successChance - partialSuccessChance - nothingChance - failureChance
 	}
 
 	r := rand.Intn(100)
-	log.Printf("%s attempts %s on %s: success=%d%%, partial=%d%%, failure=%d%%, totalFailure=%d%%, surroundingBoost=%d, roll=%d",
-		attacker.Name, moveName, target.Name, successChance, partialSuccessChance, failureChance, totalFailureChance, successBoost, r)
+	log.Printf("%s attempts %s on %s: success=%d%%, partial=%d%%, nothing=%d%%, failure=%d%%, totalFailure=%d%%, wrestlingDiff=%d, roll=%d",
+		attacker.Name, moveName, target.Name, successChance, partialSuccessChance, nothingChance, failureChance, totalFailureChance, wrestlingDiff, r)
 
 	switch {
 	case r < successChance:
@@ -300,7 +328,6 @@ func nextTurn(game *Game) {
 			}
 		}
 	}
-	// Проверка победителя
 	aliveTeams := 0
 	winner := -1
 	for teamID, team := range game.Teams {

@@ -44,24 +44,32 @@ type TeamConfig struct {
 }
 
 type Character struct {
-	ID             int      `json:"id"`
-	Name           string   `json:"name"`
-	Team           int      `json:"team"`
-	HP             int      `json:"hp"`
-	Stamina        int      `json:"stamina"`
-	AttackMin      int      `json:"attackMin"`
-	AttackMax      int      `json:"attackMax"`
-	Defense        int      `json:"defense"`
-	Initiative     int      `json:"initiative"`
-	Weapon         string   `json:"weapon"`
-	Shield         string   `json:"shield"`
-	Height         int      `json:"height"`
-	Weight         int      `json:"weight"`
-	Position       [2]int   `json:"position"`
-	CountOfAbility int      `json:"-"`
-	Abilities      []string `json:"abilities"` // Теперь это список идентификаторов способностей
-	Effects        []Effect `json:"effects"`
-	ImageURL       string   `json:"imageURL"`
+	//base
+	ID             int    `json:"id"`
+	Name           string `json:"name"`
+	Team           int    `json:"team"`
+	CountOfAbility int    `json:"-"`
+	ImageURL       string `json:"imageURL"`
+	//заполняются в бою или перед инициализацией
+	Abilities []string `json:"abilities"`
+	Effects   []Effect `json:"effects"`
+	Position  [2]int   `json:"position"`
+	// Снаряжение
+	Weapon        string `json:"weapon"`
+	Shield        string `json:"shield"`
+	IsTitanArmour bool   `json:"IsTitanArmour"` //новая, показывает из титана комплект доспехов у человека или нет.
+	// Основные характеристики
+	Height     int `json:"height"`
+	Weight     int `json:"weight"`
+	HP         int `json:"hp"`
+	Stamina    int `json:"stamina"`
+	Initiative int `json:"initiative"`
+	Wrestling  int `json:"wrestling"` //новая, показатель борьбы. Если показатель у персонажа показатель высокий, а у противника низкий, то шанс успеха приема большой, если наоборот - шанс неуспеха приема большой.
+	Attack     int `json:"attack"`    //новая, показатель атаки. Нужен для невилирования защиты противника.
+	Defense    int `json:"defense"`
+	// остальное
+	AttackMin int `json:"attackMin"`
+	AttackMax int `json:"attackMax"`
 }
 
 func (c *Character) SetAbilities(abilitiesConfig map[string]Ability) {

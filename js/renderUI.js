@@ -138,9 +138,11 @@ function renderCards(container, chars, data, allChars) {
         if (char.hp <= 0) card.classList.add('dead');
         if (data.phase === 'setup' && char.position[0] !== -1) card.classList.add('placed');
 
+        // Добавим индикатор Titan Armour на карточке
+        const titanIcon = char.isTitanArmour ? '<span class="titan-icon">🛠️</span>' : '';
         card.innerHTML = `
             <div class="image" style="background-image: url('${char.imageURL || 'default-image.png'}');"></div>
-            <div class="name">${char.name}</div>
+            <div class="name">${char.name} ${titanIcon}</div>
             <div class="info">
                 <div>Здоровье: ${char.hp}</div>
                 <div>Инициатива: ${char.initiative}</div>
@@ -158,6 +160,8 @@ function showCharacterModal(char, data) {
     const modalCard = document.getElementById('modalCharacterCard');
     const closeBtn = modal.querySelector('.close');
 
+    // Добавляем новые поля в стильном виде
+    const titanArmourText = char.IsTitanArmour ? 'Титан ️' : 'Сталь ️';
     modalCard.innerHTML = `
         <div class="card team${char.team}">
             <div class="image" style="background-image: url('${char.imageURL || 'default-image.png'}');"></div>
@@ -165,13 +169,15 @@ function showCharacterModal(char, data) {
             <div class="info">
                 <div class="stats-container">
                     <div class="stat"><i class="fas fa-wheelchair-move"></i> <span class="label">Скорость:</span> ${char.stamina}</div>
-                    <div class="stat"><i class="fas fa-skull"></i> <span class="label">Атака:</span> ${char.attackMin}-${char.attackMax}</div>
+                    <div class="stat"><i class="fas fa-fist-raised"></i> <span class="label">Атака:</span> ${char.attack} (${char.attackMin}-${char.attackMax})</div>
                     <div class="stat"><i class="fas fa-shield-alt"></i> <span class="label">Защита:</span> ${char.defense}</div>
+                    <div class="stat"><i class="fas fa-hand-rock"></i> <span class="label">Борьба:</span> ${char.wrestling}</div>
                     <div class="stat"><i class="fas fa-ruler-vertical"></i> <span class="label">Рост:</span> ${char.height || 'N/A'}</div>
                     <div class="stat"><i class="fas fa-rocket"></i> <span class="label">Активность:</span> ${char.initiative}</div>
                     <div class="stat"><i class="fas fa-weight"></i> <span class="label">Вес:</span> ${char.weight || 'N/A'}</div>
                     <div class="stat full-width"><i class="fas fa-gavel"></i> <span class="label"></span> ${data.weaponsConfig[char.weapon]?.display_name || 'None'}</div>
                     <div class="stat full-width"><i class="fas fa-shield"></i> <span class="label"></span> ${data.shieldsConfig[char.shield]?.display_name || 'None'}</div>
+                    <div class="stat full-width"><i class="fas fa-vest"></i>${char.IsTitanArmour ? 'Титановый' : 'Стальной'} комплект</div>
                 </div>
                 <div class="hp-container"><div class="hp-diamond"><div class="hp">${char.hp}</div></div></div>
             </div>
