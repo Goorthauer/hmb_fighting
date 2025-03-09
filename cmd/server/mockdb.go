@@ -134,10 +134,10 @@ func (m *MockDatabase) GetAbilities() (map[string]Ability, error) {
 }
 
 // GetTeamsConfig возвращает конфигурацию команд
-func (m *MockDatabase) GetTeamsConfig() ([2]TeamConfig, error) {
-	return [2]TeamConfig{
-		{IconURL: "./static/icons/team0.png"},
-		{IconURL: "./static/icons/team1.png"},
+func (m *MockDatabase) GetTeamsConfig() (map[int]TeamConfig, error) {
+	return map[int]TeamConfig{
+		0: {IconURL: "./static/icons/team0.png"},
+		1: {IconURL: "./static/icons/team1.png"},
 	}, nil
 }
 

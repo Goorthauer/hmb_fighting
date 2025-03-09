@@ -3,56 +3,153 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Battle Game - Registration</title>
+    <title>Battle Game - Login</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<!-- Экран регистрации -->
-<div class="registration-container">
-    <div id="register-form">
-        <h2>Register</h2>
+<!-- Экран логина -->
+<div class="registration-container" id="login-container">
+    <div id="login-form">
+        <h2>Login</h2>
         <input type="text" id="name" placeholder="Name" required>
         <input type="email" id="email" placeholder="Email" required>
-        <button onclick="register()">Register</button>
+        <button onclick="login()">Login</button>
+    </div>
+</div>
+
+<!-- Экран выбора комнаты -->
+<div class="registration-container hidden" id="room-selection">
+    <div id="room-form">
+        <h2>Select or Create Room</h2>
+        <input type="text" id="room-id" placeholder="Enter Room ID">
+        <button onclick="joinRoom()">Join Room</button>
+        <button onclick="createRoom()">Create New Room</button>
+        <!-- Добавляем секцию для отображения ID комнаты -->
+        <div id="room-id-display" class="hidden">
+            <p>Your Room ID: <span id="created-room-id"></span></p>
+            <button onclick="copyRoomId()">Copy Room ID</button>
+        </div>
     </div>
 </div>
 
 <script>
-    // Проверка, зарегистрирован ли пользователь
-    function checkRegistration() {
+    function checkAuth() {
+        const accessToken = localStorage.getItem('accessToken');
         const clientID = localStorage.getItem('clientID');
-        if (clientID) {
-            // Если clientID есть, перенаправляем на game.html
-            window.location.href = 'game.html';
+        console.log('Checking auth:', { accessToken, clientID });
+        if (accessToken && clientID) {
+            console.log('User authenticated, showing room selection');
+            document.getElementById('login-container').classList.add('hidden');
+            document.getElementById('room-selection').classList.remove('hidden');
+        } else {
+            console.log('No auth found, staying on login screen');
         }
     }
 
-    // Вызов проверки при загрузке страницы
-    checkRegistration();
+    checkAuth();
 
-    function register() {
+    function login() {
         const name = document.getElementById('name').value;
         const email = document.getElementById('email').value;
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            alert('Please enter a valid email address');
+            return;
+        }
+
+        console.log('Sending login request:', { name, email });
         fetch('http://localhost:8080/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, email })
         })
             .then(response => {
+                console.log('Response received:', response);
+                if (!response.ok) throw new Error('Login failed: ' + response.statusText);
+                return response.json();
+            })
+            .then(data => {
+                console.log('Login data:', data);
+                localStorage.setItem('accessToken', data.accessToken);
+                localStorage.setItem('refreshToken', data.refreshToken);
+                localStorage.setItem('clientID', data.clientID);
+                console.log('Stored in localStorage:', { accessToken: data.accessToken, refreshToken: data.refreshToken, clientID: data.clientID });
+                document.getElementById('login-container').classList.add('hidden');
+                document.getElementById('room-selection').classList.remove('hidden');
+                console.log('Switched to room selection');
+            })
+            .catch(err => {
+                console.error('Login failed:', err);
+                alert('Login failed. Please try again.');
+            });
+    }
+
+    function createRoom() {
+        const accessToken = localStorage.getItem('accessToken');
+        if (!accessToken) {
+            console.error('No access token found, redirecting to login');
+            window.location.href = 'login.html';
+            return;
+        }
+
+        console.log('Creating room with accessToken:', accessToken);
+        fetch('http://localhost:8080/create-room', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accessToken: accessToken })
+        })
+            .then(response => {
                 if (!response.ok) {
-                    throw new Error('Registration failed: ' + response.statusText);
+                    return response.text().then(text => {
+                        throw new Error(`Server responded with ${response.status}: ${text}`);
+                    });
                 }
                 return response.json();
             })
             .then(data => {
-                const clientID = data.clientID;
-                localStorage.setItem('clientID', clientID);
+                console.log('Room created:', data.roomID);
+                localStorage.setItem('currentRoom', data.roomID);
+                // Отображаем ID комнаты
+                const roomIdDisplay = document.getElementById('room-id-display');
+                const createdRoomId = document.getElementById('created-room-id');
+                createdRoomId.textContent = data.roomID;
+                roomIdDisplay.classList.remove('hidden');
+                // Не перенаправляем сразу, чтобы пользователь мог скопировать ID
+            })
+            .catch(err => {
+                console.error('Room creation failed:', err);
+                alert('Failed to create room. Please try again.');
+            });
+    }
 
-                // Переход на страницу игры
+    function copyRoomId() {
+        const roomId = document.getElementById('created-room-id').textContent;
+        navigator.clipboard.writeText(roomId)
+            .then(() => {
+                console.log('Room ID copied to clipboard:', roomId);
+                alert('Room ID copied to clipboard! Share it with your friend.');
+                // Теперь перенаправляем в игру после копирования
                 window.location.href = 'game.html';
             })
-            .catch(err => console.error('Registration failed:', err));
+            .catch(err => {
+                console.error('Failed to copy Room ID:', err);
+                alert('Failed to copy Room ID.');
+            });
     }
+
+    function joinRoom() {
+        const roomID = document.getElementById('room-id').value.trim();
+        if (!roomID) {
+            alert('Please enter a room ID');
+            return;
+        }
+        localStorage.setItem('currentRoom', roomID);
+        console.log('Joining room, redirecting to game.html with roomID:', roomID);
+        window.location.href = 'game.html';
+    }
+
+    // Удаляем некорректный addEventListener, так как кнопка уже использует onclick
+    // document.getElementById('createRoomBtn').addEventListener('click', createRoom);
 </script>
 </body>
 </html>

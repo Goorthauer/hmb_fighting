@@ -4,7 +4,7 @@ package main
 type Database interface {
 	GetWeapons() (map[string]Weapon, error)
 	GetShields() (map[string]Shield, error)
-	GetTeamsConfig() ([2]TeamConfig, error)
+	GetTeamsConfig() (map[int]TeamConfig, error)
 	GetCharacters() ([]Character, error)
 	GetAbilities() (map[string]Ability, error) // Новый метод
 }

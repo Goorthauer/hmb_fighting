@@ -1,30 +1,40 @@
 export let ws = null;
-export let clientID = localStorage.getItem('clientID') || null;
 
 export function connectWebSocket(room, isSpectator, onMessage) {
-    if (!room || room === 'null') {
-        console.error('Room parameter is missing or invalid, cannot connect to WebSocket');
+    const accessToken = localStorage.getItem('accessToken');
+    const clientID = localStorage.getItem('clientID');
+    if (!accessToken || !clientID) {
+        console.error('No access token or clientID found, redirecting to login');
+        window.location.href = 'index.html';
         return;
     }
 
-    const url = `ws://localhost:8080/ws?room=${encodeURIComponent(room)}&spectator=${isSpectator}${clientID ? `&clientID=${encodeURIComponent(clientID)}` : ''}`;
+    const url = `ws://localhost:8080/ws?room=${encodeURIComponent(room)}&accessToken=${encodeURIComponent(accessToken)}`;
     console.log('Connecting to WebSocket with URL:', url);
     ws = new WebSocket(url);
 
     ws.onopen = () => {
-        console.log(`Connected to ${room} as ${isSpectator ? 'spectator' : 'player'} with clientID: ${clientID}`);
+        console.log(`Connected to ${room} as ${isSpectator ? 'spectator' : 'player'}`);
     };
 
     ws.onmessage = (event) => {
-        onMessage(event);
+        const data = JSON.parse(event.data);
+        console.log('Received WebSocket message:', data);
+        if (data.error === 'Invalid token') {
+            console.log('Invalid token detected, attempting to refresh...');
+            refreshToken(() => connectWebSocket(room, isSpectator, onMessage));
+        } else {
+            onMessage(event);
+        }
     };
 
     ws.onerror = (err) => {
         console.error('WebSocket error:', err);
     };
 
-    ws.onclose = () => {
-        console.log('Disconnected from server, attempting to reconnect...');
+    ws.onclose = (event) => {
+        console.log('Disconnected from server:', { code: event.code, reason: event.reason });
+        localStorage.clear(); // Полная очистка
         ws = null;
         setTimeout(() => connectWebSocket(room, isSpectator, onMessage), 1000);
     };
@@ -39,8 +49,35 @@ export function sendMessage(message) {
     }
 }
 
-export function setClientID(id) {
-    clientID = id;
-    localStorage.setItem('clientID', id);
-    console.log('Updated clientID in websocket.js:', clientID);
+function refreshToken(callback) {
+    const refreshTokenVal = localStorage.getItem('refreshToken');
+    if (!refreshTokenVal) {
+        console.error('No refresh token found, redirecting to login');
+        window.location.href = 'index.html';
+        return;
+    }
+
+    fetch('http://localhost:8080/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: refreshTokenVal })
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Token refresh failed with status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            localStorage.setItem('accessToken', data.accessToken);
+            localStorage.setItem('refreshToken', data.refreshToken);
+            localStorage.setItem('clientID', data.clientID);
+            console.log('Token refreshed successfully');
+            callback();
+        })
+        .catch(err => {
+            console.error('Token refresh failed:', err);
+            localStorage.clear();
+            window.location.href = 'index.html';
+        });
 }

@@ -12,10 +12,10 @@ import (
 var mutex = sync.Mutex{}
 var rooms = make(map[string]*Game)
 var users = make(map[string]User)
+var usersWithRefresh = make(map[string]User)
 
 // initGame создаёт новую игру, получая данные из базы
 func initGame(db Database) *Game {
-	// Получение данных из базы
 	weaponsConfig, err := db.GetWeapons()
 	if err != nil {
 		log.Fatalf("Failed to get weapons config: %v", err)
@@ -36,25 +36,27 @@ func initGame(db Database) *Game {
 		log.Fatalf("Failed to get characters: %v", err)
 	}
 
-	abilitiesConfig, err := db.GetAbilities() // Загружаем способности
+	abilitiesConfig, err := db.GetAbilities()
 	if err != nil {
 		log.Fatalf("Failed to get abilities config: %v", err)
 	}
 
-	// Разделение персонажей по командам
-	teams := [2]Team{
-		{Characters: make([]Character, 0)},
-		{Characters: make([]Character, 0)},
-	}
+	firstCharactersTeam := make([]Character, 0)
+	secondCharactersTeam := make([]Character, 0)
 	for _, char := range characters {
+		char.Position = [2]int{-1, -1} // Убираем дефолтную расстановку
 		if char.Team == 0 {
-			teams[0].Characters = append(teams[0].Characters, char)
+			firstCharactersTeam = append(firstCharactersTeam, char)
 		} else if char.Team == 1 {
-			teams[1].Characters = append(teams[1].Characters, char)
+			secondCharactersTeam = append(secondCharactersTeam, char)
 		}
 	}
 
-	// Инициализация игры
+	teams := map[int]Team{
+		0: {Characters: firstCharactersTeam},
+		1: {Characters: secondCharactersTeam},
+	}
+
 	game := &Game{
 		Connections:     make(map[*websocket.Conn]*Client),
 		GameSessionId:   uuid.New().String(),
@@ -63,8 +65,9 @@ func initGame(db Database) *Game {
 		TeamsConfig:     teamsConfig,
 		Teams:           teams,
 		AbilitiesConfig: abilitiesConfig,
-		CurrentTurn:     3, // Оставляем как было, можно позже сделать динамическим
-		Phase:           "move",
+		CurrentTurn:     -1, // Нет текущего хода в setup
+		Phase:           "setup",
+		Players:         make(map[int]string),
 		Board:           [16][9]int{},
 	}
 
@@ -75,9 +78,10 @@ func initGame(db Database) *Game {
 		}
 	}
 
-	// Размещение персонажей на доске с учётом бонусов щитов и оружия
+	// Применяем бонусы щитов и оружия, но не размещаем на доске
 	for _, team := range game.Teams {
-		for _, char := range team.Characters {
+		for i := range team.Characters {
+			char := &team.Characters[i]
 			if shield, ok := game.ShieldsConfig[char.Shield]; ok {
 				char.Defense += shield.DefenseBonus
 				char.AttackMin += shield.AttackBonus
@@ -87,18 +91,13 @@ func initGame(db Database) *Game {
 				char.AttackMin += weapon.AttackBonus
 				char.AttackMax += weapon.AttackBonus
 			}
-			if char.Position[0] >= 0 && char.Position[0] < 16 && char.Position[1] >= 0 && char.Position[1] < 9 {
-				game.Board[char.Position[0]][char.Position[1]] = char.ID
-			} else {
-				log.Printf("Warning: Character %s position (%d, %d) is out of bounds for 16x9 board", char.Name, char.Position[0], char.Position[1])
-			}
 		}
 	}
 
 	return game
 }
 
-// Остальные функции остаются без изменений
+// Остальные функции без изменений
 func findCharacter(game *Game, id int) *Character {
 	for i := range game.Teams {
 		for j := range game.Teams[i].Characters {
@@ -305,6 +304,22 @@ func nextTurn(game *Game) {
 				}
 			}
 		}
+	}
+	// Проверка победителя
+	aliveTeams := 0
+	winner := -1
+	for teamID, team := range game.Teams {
+		for _, char := range team.Characters {
+			if char.HP > 0 {
+				aliveTeams++
+				winner = teamID
+				break
+			}
+		}
+	}
+	if aliveTeams <= 1 {
+		game.Winner = winner
+		game.Phase = "finished"
 	}
 }
 

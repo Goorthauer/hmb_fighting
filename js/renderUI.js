@@ -1,5 +1,6 @@
 import {gameState, selectedCharacter, selectedAbility, setSelectedCharacter, setSelectedAbility} from './state.js';
 import {findCharacter, addLogEntry} from './utils.js';
+import { setupCardDragListeners } from './eventHandlers.js';
 
 let previousState = null;
 let turnOrder = [];
@@ -42,7 +43,7 @@ export function updatePhaseAndProgress(data) {
     const team0Alive = data.teams?.[0]?.characters.filter(c => c.hp > 0).length || 0;
     const team1Alive = data.teams?.[1]?.characters.filter(c => c.hp > 0).length || 0;
     const currentChar = findCharacter(data.teams, data.currentTurn);
-    const phaseText = data.phase === 'move' ? 'Move' : 'Action';
+    const phaseText = data.phase === 'setup' ? 'Setup' : data.phase === 'move' ? 'Move' : 'Action';
 
     console.log('Updating phase and progress:', {
         currentTurn: data.currentTurn,
@@ -101,12 +102,19 @@ export function updateCharacterCards(data) {
         }
     }
 
-    renderCards(characterCards, allChars, data);
+    const myTeam = data.teamID;
+    let charsToShow = allChars;
+    if (data.phase === 'setup') {
+        charsToShow = allChars.filter(char => char.team === myTeam && char.position[0] === -1);
+    }
+
+    renderCards(characterCards, charsToShow, data, allChars);
     saveTurnState(gameSessionId);
+    setupCardDragListeners(data.teamID);
     isUpdatingCards = false;
 }
 
-function renderCards(container, chars, data) {
+function renderCards(container, chars, data, allChars) {
     container.innerHTML = '';
 
     const sortedChars = chars.sort((a, b) => {
@@ -119,8 +127,10 @@ function renderCards(container, chars, data) {
         const card = document.createElement('div');
         card.classList.add('card', `team${char.team}`);
         card.dataset.id = char.id;
+        card.draggable = data.phase === 'setup' || (char.id === data.currentTurn && char.team === data.teamID);
         if (char.id === data.currentTurn) card.classList.add('current');
         if (char.hp <= 0) card.classList.add('dead');
+        if (data.phase === 'setup' && char.position[0] !== -1) card.classList.add('placed');
 
         card.innerHTML = `
             <div class="image" style="background-image: url('${char.imageURL || 'default-image.png'}');"></div>
@@ -292,6 +302,10 @@ export function updateTurnHeader(myTeam, data) {
             turnHeader.style.color = '#ff6b6b';
             turnHeader.style.textShadow = '0 0 10px rgba(255, 107, 107, 0.7)';
         }
+    } else if (data.phase === 'setup') {
+        turnHeader.textContent = 'РАССТАНОВКА';
+        turnHeader.style.color = '#ffffff';
+        turnHeader.style.textShadow = '0 0 10px rgba(255, 255, 255, 0.7)';
     }
 }
 
@@ -301,7 +315,7 @@ export function updateEndTurnButton(myTeam, data) {
 
     const currentChar = findCharacter(data.teams, data.currentTurn);
     if (currentChar) {
-        if (currentChar.team === myTeam) {
+        if (currentChar.team === myTeam && data.phase !== 'setup') {
             endTurnBtn.textContent = 'Завершить ход';
             endTurnBtn.disabled = false;
             endTurnBtn.classList.remove('disabled');
@@ -310,5 +324,9 @@ export function updateEndTurnButton(myTeam, data) {
             endTurnBtn.disabled = true;
             endTurnBtn.classList.add('disabled');
         }
+    } else if (data.phase === 'setup') {
+        endTurnBtn.textContent = 'Завершить ход';
+        endTurnBtn.disabled = true;
+        endTurnBtn.classList.add('disabled');
     }
 }

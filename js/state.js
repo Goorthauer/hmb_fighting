@@ -1,3 +1,5 @@
+import { findCharacter } from './utils.js';
+
 export let gameState = null;
 export let draggingCharacter = null;
 export let dragOffsetX = 0;
@@ -7,10 +9,17 @@ export let selectedAbility = null;
 export let isSpectator = false;
 export let currentRoom = localStorage.getItem('currentRoom') || null;
 export let movePath = [];
+export let currentChar = null;
 
 export function setGameState(state) {
     console.log('Setting game state:', state);
     gameState = state;
+    if (state.currentTurn !== -1) {
+        currentChar = findCharacter(state.teams, state.currentTurn);
+        console.log('Updated currentChar:', currentChar);
+    } else {
+        currentChar = null;
+    }
 }
 
 export function setDraggingCharacter(char) {

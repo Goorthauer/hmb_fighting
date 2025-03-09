@@ -14,6 +14,7 @@ var upgrader = websocket.Upgrader{
 }
 
 type User struct {
+	ID    string `json:"ID"`
 	Name  string `json:"name"`
 	Email string `json:"email"`
 }
@@ -114,14 +115,17 @@ type Client struct {
 
 type Game struct {
 	Connections     map[*websocket.Conn]*Client
-	Teams           [2]Team
+	Teams           map[int]Team   // Теперь map для гибкости
+	Players         map[int]string // teamID -> clientID (только 2 игрока)
 	CurrentTurn     int
 	Phase           string
 	Board           [16][9]int
 	GameSessionId   string
 	WeaponsConfig   map[string]Weapon
 	ShieldsConfig   map[string]Shield
-	AbilitiesConfig map[string]Ability // Добавляем конфигурацию способностей
-	TeamsConfig     [2]TeamConfig
+	AbilitiesConfig map[string]Ability
+	TeamsConfig     map[int]TeamConfig // Теперь map
 	mutex           sync.Mutex
+	SetupPhase      bool // Фаза расстановки
+	Winner          int  // ID команды-победителя, -1 если нет
 }

@@ -1,6 +1,7 @@
 import { gameState, draggingCharacter, selectedAbility } from './state.js';
 import { cellWidth, cellHeight } from './constants.js';
 import { findCharacter } from './utils.js';
+import { sendMessage } from './websocket.js';
 
 export function calculatePath(startX, startY, endX, endY) {
     const path = [];
@@ -28,7 +29,14 @@ export function getGridPosition(event) {
 }
 
 export function canMove(gridX, gridY) {
-    return gameState.phase === 'move' && gameState.board[gridX][gridY] === -1;
+    const currentChar = findCharacter(gameState.teams, gameState.currentTurn);
+    if (!currentChar) return false;
+    const dist = Math.abs(gridX - currentChar.position[0]) + Math.abs(gridY - currentChar.position[1]);
+    return gameState.phase === 'move' &&
+        gridX >= 0 && gridX < 16 &&
+        gridY >= 0 && gridY < 9 &&
+        gameState.board[gridX][gridY] === -1 &&
+        dist <= currentChar.stamina;
 }
 
 export function canAttackOrUseAbility(gridX, gridY, myTeam) {
@@ -40,19 +48,14 @@ export function canAttackOrUseAbility(gridX, gridY, myTeam) {
 export function isWithinAttackRange(attacker, targetX, targetY, weaponsConfig, ability = null) {
     const startX = attacker.position[0];
     const startY = attacker.position[1];
+    const dx = Math.abs(targetX - startX);
+    const dy = Math.abs(targetY - startY);
 
-    // Если используется способность, проверяем её диапазон
     if (ability && ability.range !== undefined) {
-        const dist = Math.max(Math.abs(targetX - startX), Math.abs(targetY - startY));
-        return dist <= ability.range; // Проверяем, что цель в пределах диапазона способности
+        return dx <= ability.range && dy <= ability.range;
     }
 
-    // Если способность не используется, проверяем диапазон оружия
     const weapon = weaponsConfig[attacker.weapon];
     const weaponRange = weapon ? weapon.range : 1;
-    const isTwoHanded = weapon ? weapon.isTwoHanded : false;
-    const dist = Math.max(Math.abs(targetX - startX), Math.abs(targetY - startY));
-
-    // Проверяем диапазон оружия
-    return (isTwoHanded && dist === weaponRange) || (!isTwoHanded && dist <= weaponRange);
+    return dx <= weaponRange && dy <= weaponRange;
 }

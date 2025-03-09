@@ -8,6 +8,9 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	jwt "github.com/golang-jwt/jwt/v5"
+	"github.com/gorilla/websocket"
 )
 
 func enableCORS(next http.Handler) http.Handler {
@@ -28,31 +31,84 @@ func generateClientID() string {
 }
 
 func handleRegister(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	var user User
-	err := json.NewDecoder(r.Body).Decode(&user)
-	if err != nil {
+	var currentUser User
+	if err := json.NewDecoder(r.Body).Decode(&currentUser); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-
-	if user.Name == "" || user.Email == "" {
+	if currentUser.Name == "" || currentUser.Email == "" {
 		http.Error(w, "Name and email are required", http.StatusBadRequest)
 		return
 	}
+	user, ok := users[currentUser.Email]
+	if !ok {
+		user = currentUser
+		user.ID = generateClientID()
+		users[user.Email] = user
+	}
+	tokenPair, err := generateTokenPair(user, "spectator")
+	if err != nil {
+		http.Error(w, "Failed to generate tokens", http.StatusInternalServerError)
+		return
+	}
 
-	clientID := generateClientID()
 	mutex.Lock()
-	users[clientID] = user
+	usersWithRefresh[tokenPair.RefreshToken] = user
 	mutex.Unlock()
 
+	response := struct {
+		AccessToken  string `json:"accessToken"`
+		RefreshToken string `json:"refreshToken"`
+		ClientID     string `json:"clientID"`
+	}{
+		AccessToken:  tokenPair.AccessToken,
+		RefreshToken: tokenPair.RefreshToken,
+		ClientID:     user.ID,
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"clientID": clientID})
-	log.Printf("Registered user: %s (%s) with ClientID: %s", user.Name, user.Email, clientID)
+	json.NewEncoder(w).Encode(response)
+	log.Printf("Registered user: %s (%s) with ClientID: %s", user.Name, user.Email, response.ClientID)
+}
+
+func handleRefresh(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		RefreshToken string `json:"refreshToken"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	user, ok := findUserByRefreshToken(req.RefreshToken)
+	if !ok {
+		http.Error(w, "Invalid refresh token", http.StatusUnauthorized)
+		return
+	}
+	tokenPair, err := refreshToken(req.RefreshToken)
+	if err != nil {
+		http.Error(w, "Invalid refresh token", http.StatusUnauthorized)
+		return
+	}
+
+	response := struct {
+		AccessToken  string `json:"accessToken"`
+		RefreshToken string `json:"refreshToken"`
+		ClientID     string `json:"clientID"`
+	}{
+		AccessToken:  tokenPair.AccessToken,
+		RefreshToken: tokenPair.RefreshToken,
+		ClientID:     user.ID,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func findUserByRefreshToken(refreshToken string) (User, bool) {
+	mutex.Lock()
+	defer mutex.Unlock()
+	user, ok := usersWithRefresh[refreshToken]
+	return user, ok
 }
 
 func handleCheckClient(w http.ResponseWriter, r *http.Request) {
@@ -62,11 +118,17 @@ func handleCheckClient(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		ClientID string `json:"clientID"`
+		ClientID    string `json:"clientID"`
+		AccessToken string `json:"accessToken"`
 	}
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	claims, err := validateToken(req.AccessToken)
+	if err != nil {
+		http.Error(w, "Invalid token", http.StatusUnauthorized)
 		return
 	}
 
@@ -74,27 +136,111 @@ func handleCheckClient(w http.ResponseWriter, r *http.Request) {
 	_, exists := users[req.ClientID]
 	mutex.Unlock()
 
+	if claims.ClientID != req.ClientID {
+		exists = false
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]bool{"valid": exists})
 	log.Printf("Checked clientID: %s, valid: %v", req.ClientID, exists)
 }
 
-func handleWebSocket(w http.ResponseWriter, r *http.Request) {
-	room := r.URL.Query().Get("room")
-	spectator := r.URL.Query().Get("spectator") == "true"
-	clientID := r.URL.Query().Get("clientID")
-
-	log.Printf("WebSocket request received: room=%s, spectator=%t, clientID=%s", room, spectator, clientID)
-
-	if room == "" || room == "null" {
-		log.Println("Rejecting connection: room parameter is missing or invalid")
-		http.Error(w, "Room parameter is required", http.StatusBadRequest)
+func handleCreateRoom(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		AccessToken string `json:"accessToken"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	if clientID == "" || clientID == "undefined" {
-		log.Println("Rejecting connection: clientID is required")
-		http.Error(w, "ClientID is required", http.StatusBadRequest)
+	claims, err := validateToken(req.AccessToken)
+	if err != nil {
+		http.Error(w, "Invalid token", http.StatusUnauthorized)
+		return
+	}
+
+	db := NewMockDatabase()
+	game := initGame(db)
+	game.Players[0] = claims.ClientID
+
+	mutex.Lock()
+	rooms[game.GameSessionId] = game
+	mutex.Unlock()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"roomID": game.GameSessionId})
+	log.Printf("Room %s created by %s", game.GameSessionId, claims.ClientID)
+}
+
+func handleRestart(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		AccessToken string `json:"accessToken"`
+		RoomID      string `json:"roomID"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	claims, err := validateToken(req.AccessToken)
+	if err != nil {
+		http.Error(w, "Invalid token", http.StatusUnauthorized)
+		return
+	}
+
+	mutex.Lock()
+	game, exists := rooms[req.RoomID]
+	mutex.Unlock()
+	if !exists || (game.Players[0] != claims.ClientID && game.Players[1] != claims.ClientID) {
+		http.Error(w, "Room not found or unauthorized", http.StatusForbidden)
+		return
+	}
+
+	game.mutex.Lock()
+	defer game.mutex.Unlock()
+	game.SetupPhase = true
+	game.Phase = "setup"
+	game.Winner = -1
+	game.CurrentTurn = -1
+	for i := range game.Board {
+		for j := range game.Board[i] {
+			game.Board[i][j] = -1
+		}
+	}
+	for teamID := range game.Teams {
+		for i := range game.Teams[teamID].Characters {
+			game.Teams[teamID].Characters[i].HP = 10
+			game.Teams[teamID].Characters[i].Position = [2]int{-1, -1}
+		}
+	}
+
+	broadcastGameState(game)
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Room restarted"))
+	log.Printf("Room %s restarted by %s", req.RoomID, claims.ClientID)
+}
+
+func handleWebSocket(w http.ResponseWriter, r *http.Request) {
+	room := r.URL.Query().Get("room")
+	accessToken := r.URL.Query().Get("accessToken")
+
+	log.Printf("WebSocket request received: room=%s, accessToken=%s", room, accessToken)
+
+	if room == "" || room == "null" {
+		http.Error(w, "Room parameter is required", http.StatusBadRequest)
+		return
+	}
+	if accessToken == "" {
+		http.Error(w, "AccessToken is required", http.StatusBadRequest)
+		return
+	}
+
+	claims, err := validateToken(accessToken)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid token"})
 		return
 	}
 
@@ -106,40 +252,37 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	defer conn.Close()
 
 	mutex.Lock()
-	user := users[clientID]
-	db := NewMockDatabase() // Создаём мок базы данных
 	game, exists := rooms[room]
-	if !exists {
-		game = initGame(db) // Передаём базу в initGame
-		rooms[room] = game
-	}
 	mutex.Unlock()
+	if !exists {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Room not found"})
+		return
+	}
 
 	game.mutex.Lock()
-	var client *Client
-	for _, existingClient := range game.Connections {
-		if existingClient.ClientID == clientID {
-			client = existingClient
-			client.Conn = conn
-			log.Printf("Reconnected client %s to room %s", clientID, room)
-			break
-		}
+	client := &Client{
+		Conn:     conn,
+		ClientID: claims.ClientID,
+		User:     &User{Name: claims.Email, Email: claims.Email},
 	}
-	if client == nil {
-		teamID := 0
-		if len(game.Connections)%2 == 1 && !spectator {
-			teamID = 1
-		}
-		client = &Client{
-			Conn:      conn,
-			TeamID:    teamID,
-			ClientID:  clientID,
-			Spectator: spectator,
-			User:      &user,
-		}
-		game.Connections[conn] = client
-		log.Printf("New client %s joined room %s as team %d (spectator: %t)", clientID, room, teamID, spectator)
+	if game.Players[0] == claims.ClientID {
+		client.TeamID = 0
+		client.Spectator = false
+	} else if len(game.Players) < 2 && claims.Role == "spectator" {
+		client.TeamID = 1
+		client.Spectator = false
+		game.Players[1] = claims.ClientID
+		claims.Role = "player"
+	} else if game.Players[1] == claims.ClientID {
+		client.TeamID = 1
+		client.Spectator = false
+	} else {
+		client.TeamID = -1
+		client.Spectator = true
 	}
+	game.Connections[conn] = client
 	game.mutex.Unlock()
 
 	broadcastGameState(game)
@@ -147,107 +290,116 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	for {
 		_, msg, err := conn.ReadMessage()
 		if err != nil {
-			log.Printf("Error reading message from %s: %v", clientID, err)
 			game.mutex.Lock()
 			delete(game.Connections, conn)
 			game.mutex.Unlock()
 			broadcastGameState(game)
+			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
+				log.Printf("Client %s disconnected normally", claims.ClientID)
+			} else {
+				log.Printf("Error reading message from %s: %v", claims.ClientID, err)
+			}
 			return
 		}
 
 		var action Action
 		if err := json.Unmarshal(msg, &action); err != nil {
-			log.Printf("Invalid action from %s: %v", clientID, err)
+			log.Printf("Invalid action from %s: %v", claims.ClientID, err)
 			continue
 		}
 
-		if action.ClientID != clientID {
-			log.Printf("ClientID mismatch: expected %s, got %s", clientID, action.ClientID)
+		if action.ClientID != claims.ClientID {
+			log.Printf("ClientID mismatch: expected %s, got %s", claims.ClientID, action.ClientID)
 			continue
 		}
 
 		game.mutex.Lock()
-		currentChar := findCharacter(game, game.CurrentTurn)
-		if currentChar == nil || currentChar.Team != client.TeamID {
-			log.Printf("Not your turn or invalid character: %s", clientID)
-			game.mutex.Unlock()
-			continue
-		}
-
-		switch action.Type {
-		case "move":
-			if game.Phase != "move" ||
-				action.Position[0] < 0 || action.Position[0] >= 16 ||
-				action.Position[1] < 0 || action.Position[1] >= 9 ||
-				distance(currentChar.Position, action.Position) > currentChar.Stamina ||
-				game.Board[action.Position[0]][action.Position[1]] != -1 {
-				log.Printf("Invalid move by %s: phase=%s, position=(%d, %d), distance=%d, stamina=%d, target=%d",
-					clientID, game.Phase, action.Position[0], action.Position[1], distance(currentChar.Position, action.Position), currentChar.Stamina, game.Board[action.Position[0]][action.Position[1]])
-			} else {
-				game.Board[currentChar.Position[0]][currentChar.Position[1]] = -1
-				currentChar.Position = action.Position
-				game.Board[action.Position[0]][action.Position[1]] = currentChar.ID
-				game.Phase = "action"
-				log.Printf("%s moved %s to (%d, %d)", clientID, currentChar.Name, action.Position[0], action.Position[1])
-			}
-		case "attack":
-			target := findCharacter(game, action.TargetID)
-			if game.Phase != "action" || target == nil || target.Team == currentChar.Team || distanceToAttack(currentChar.Position, target.Position, game.WeaponsConfig[currentChar.Weapon]) > game.WeaponsConfig[currentChar.Weapon].Range {
-				log.Printf("Invalid attack by %s on %d", clientID, action.TargetID)
-			} else {
-				damage := calculateDamage(currentChar, target, game)
-				target.HP -= damage
-				if target.HP <= 0 {
-					game.Board[target.Position[0]][target.Position[1]] = -1
-				}
-				log.Printf("%s attacked %s for %d damage (HP left: %d)", currentChar.Name, target.Name, damage, target.HP)
-				nextTurn(game)
-			}
-		case "ability":
-			target := findCharacter(game, action.TargetID)
-			if game.Phase != "action" || target == nil || target.Team == currentChar.Team {
-				log.Printf("Invalid ability use by %s on %d", clientID, action.TargetID)
-			} else {
-				ability, exists := game.AbilitiesConfig[strings.ToLower(action.Ability)]
-				if !exists {
-					log.Printf("Ability %s not found in abilities config", action.Ability)
-					continue
-				}
-
-				// Проверяем, есть ли у персонажа эта способность
-				hasAbility := false
-				for _, abilityID := range currentChar.Abilities {
-					if abilityID == action.Ability {
-						hasAbility = true
-						break
+		if game.Phase == "setup" {
+			if action.Type == "place" && client.TeamID >= 0 {
+				char := findCharacter(game, action.CharacterID)
+				if char != nil && char.Team == client.TeamID && action.Position[0] >= 0 && action.Position[0] < 16 && action.Position[1] >= 0 && action.Position[1] < 9 {
+					if game.Board[action.Position[0]][action.Position[1]] == -1 && ((char.Team == 0 && action.Position[0] < 8) || (char.Team == 1 && action.Position[0] >= 8)) {
+						char.Position = action.Position
+						game.Board[action.Position[0]][action.Position[1]] = char.ID
+						log.Printf("%s placed %s at (%d, %d)", client.ClientID, char.Name, action.Position[0], action.Position[1])
 					}
 				}
-
-				if !hasAbility {
-					log.Printf("Character %s does not have ability %s", currentChar.Name, action.Ability)
-					continue
-				}
-				// Проверяем дистанцию
-				if distanceToAbility(currentChar.Position, target.Position) > ability.Range {
-					log.Printf("Ability %s is out of range for character %s", action.Ability, currentChar.Name)
-					continue
-				}
-				// Применяем способность
-				applyWrestlingMove(game, currentChar, target, strings.ToLower(ability.Name))
-
-				// Удаляем способность из списка (если нужно)
-				for i, abilityID := range currentChar.Abilities {
-					if abilityID == action.Ability {
-						currentChar.Abilities = append(currentChar.Abilities[:i], currentChar.Abilities[i+1:]...)
-						break
+			} else if action.Type == "start" && client.TeamID >= 0 {
+				if len(game.Players) == 2 {
+					allPlaced := true
+					for _, team := range game.Teams {
+						placed := 0
+						for _, char := range team.Characters {
+							if char.Position[0] != -1 {
+								placed++
+							}
+						}
+						if placed < 5 {
+							allPlaced = false
+							break
+						}
+					}
+					if allPlaced {
+						game.SetupPhase = false
+						game.Phase = "move"
+						game.CurrentTurn = game.Teams[0].Characters[0].ID
+						log.Printf("Game %s started by %s", game.GameSessionId, claims.ClientID)
 					}
 				}
-				nextTurn(game)
 			}
-		case "end_turn":
-			if game.Phase == "move" || game.Phase == "action" {
-				nextTurn(game)
-				log.Printf("%s ended turn", clientID)
+		} else {
+			currentChar := findCharacter(game, game.CurrentTurn)
+			if currentChar == nil || currentChar.Team != client.TeamID {
+				log.Printf("Not your turn or invalid character: %s", claims.ClientID)
+				game.mutex.Unlock()
+				continue
+			}
+
+			switch action.Type {
+			case "move":
+				if game.Phase == "move" && action.Position[0] >= 0 && action.Position[0] < 16 && action.Position[1] >= 0 && action.Position[1] < 9 {
+					if distance(currentChar.Position, action.Position) <= currentChar.Stamina && game.Board[action.Position[0]][action.Position[1]] == -1 {
+						game.Board[currentChar.Position[0]][currentChar.Position[1]] = -1
+						currentChar.Position = action.Position
+						game.Board[action.Position[0]][action.Position[1]] = currentChar.ID
+						game.Phase = "action"
+						log.Printf("%s moved %s to (%d, %d)", claims.ClientID, currentChar.Name, action.Position[0], action.Position[1])
+					}
+				}
+			case "attack":
+				target := findCharacter(game, action.TargetID)
+				if game.Phase == "action" && target != nil && target.Team != currentChar.Team {
+					weaponRange := game.WeaponsConfig[currentChar.Weapon].Range
+					if distanceToAttack(currentChar.Position, target.Position, game.WeaponsConfig[currentChar.Weapon]) <= weaponRange {
+						damage := calculateDamage(currentChar, target, game)
+						target.HP -= damage
+						if target.HP <= 0 {
+							game.Board[target.Position[0]][target.Position[1]] = -1
+						}
+						log.Printf("%s attacked %s for %d damage (HP left: %d)", currentChar.Name, target.Name, damage, target.HP)
+						nextTurn(game)
+					}
+				}
+			case "ability":
+				target := findCharacter(game, action.TargetID)
+				if game.Phase == "action" && target != nil && target.Team != currentChar.Team {
+					ability, exists := game.AbilitiesConfig[strings.ToLower(action.Ability)]
+					if exists && distanceToAbility(currentChar.Position, target.Position) <= ability.Range {
+						for i, abilityID := range currentChar.Abilities {
+							if abilityID == action.Ability {
+								applyWrestlingMove(game, currentChar, target, strings.ToLower(ability.Name))
+								currentChar.Abilities = append(currentChar.Abilities[:i], currentChar.Abilities[i+1:]...)
+								nextTurn(game)
+								break
+							}
+						}
+					}
+				}
+			case "end_turn":
+				if game.Phase == "move" || game.Phase == "action" {
+					nextTurn(game)
+					log.Printf("%s ended turn", claims.ClientID)
+				}
 			}
 		}
 		game.mutex.Unlock()
@@ -259,9 +411,23 @@ func broadcastGameState(game *Game) {
 	game.mutex.Lock()
 	defer game.mutex.Unlock()
 	log.Printf("Broadcasting to %d clients", len(game.Connections))
+
+	teams := [2]Team{}
+	for i := 0; i < 2; i++ {
+		if team, ok := game.Teams[i]; ok {
+			teams[i] = team
+		}
+	}
+	teamsConfig := [2]TeamConfig{}
+	for i := 0; i < 2; i++ {
+		if config, ok := game.TeamsConfig[i]; ok {
+			teamsConfig[i] = config
+		}
+	}
+
 	for conn, client := range game.Connections {
 		state := GameState{
-			Teams:           game.Teams,
+			Teams:           teams,
 			CurrentTurn:     game.CurrentTurn,
 			Phase:           game.Phase,
 			Board:           game.Board,
@@ -271,13 +437,36 @@ func broadcastGameState(game *Game) {
 			WeaponsConfig:   game.WeaponsConfig,
 			AbilitiesConfig: game.AbilitiesConfig,
 			ShieldsConfig:   game.ShieldsConfig,
-			TeamsConfig:     game.TeamsConfig,
+			TeamsConfig:     teamsConfig,
 		}
-		err := conn.WriteJSON(state)
-		if err != nil {
+		if err := conn.WriteJSON(state); err != nil {
 			log.Printf("Error sending game state to %s: %v", client.ClientID, err)
 			conn.Close()
 			delete(game.Connections, conn)
 		}
 	}
+}
+
+func validateToken(tokenString string) (*Claims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+		return jwtKey, nil
+	})
+	if err != nil || !token.Valid {
+		return nil, fmt.Errorf("invalid token: %v", err)
+	}
+	claims, ok := token.Claims.(*Claims)
+	if !ok || claims.ExpiresAt.Before(time.Now()) {
+		return nil, fmt.Errorf("invalid or expired token")
+	}
+	return claims, nil
+}
+
+func countPlacedCharacters(team Team) int {
+	count := 0
+	for _, char := range team.Characters {
+		if char.Position[0] != -1 && char.Position[1] != -1 {
+			count++
+		}
+	}
+	return count
 }
