@@ -1,5 +1,5 @@
-import {gameState, selectedCharacter, selectedAbility, setSelectedCharacter, setSelectedAbility} from './state.js';
-import {findCharacter, addLogEntry} from './utils.js';
+import { gameState, selectedCharacter, selectedAbility, setSelectedCharacter, setSelectedAbility } from './state.js';
+import { findCharacter, addLogEntry } from './utils.js';
 import { setupCardDragListeners } from './eventHandlers.js';
 
 let previousState = null;
@@ -9,30 +9,34 @@ let currentGameSessionId = null;
 let isUpdatingCards = false;
 let isUpdatingAbilities = false;
 
+// Сохранение состояния хода
 function saveTurnState(gameSessionId) {
-    const state = {turnOrder, roundStarted, previousTurn: previousState?.currentTurn};
+    const state = { turnOrder, roundStarted, previousTurn: previousState?.currentTurn };
     localStorage.setItem(`turnState_${gameSessionId}`, JSON.stringify(state));
 }
 
+// Загрузка состояния хода
 function loadTurnState(gameSessionId) {
     const savedState = localStorage.getItem(`turnState_${gameSessionId}`);
     if (savedState) {
         const state = JSON.parse(savedState);
         turnOrder = state.turnOrder || [];
         roundStarted = state.roundStarted || false;
-        previousState = state.previousTurn ? {currentTurn: state.previousTurn} : null;
+        previousState = state.previousTurn ? { currentTurn: state.previousTurn } : null;
         currentGameSessionId = gameSessionId;
         return true;
     }
     return false;
 }
 
+// Сброс состояния хода
 function resetTurnState() {
     turnOrder = [];
     roundStarted = false;
     currentGameSessionId = null;
 }
 
+// Обновление фазы и прогресса игры
 export function updatePhaseAndProgress(data) {
     const phaseContainer = document.getElementById('phaseContainer');
     if (!phaseContainer) {
@@ -65,6 +69,7 @@ export function updatePhaseAndProgress(data) {
     }
 }
 
+// Обновление карт персонажей
 export function updateCharacterCards(data) {
     if (isUpdatingCards) return;
     isUpdatingCards = true;
@@ -93,7 +98,7 @@ export function updateCharacterCards(data) {
 
     if (!roundStarted || turnOrder.length === 0) {
         if (loadTurnState(gameSessionId)) {
-            console.log('Loaded turn state:', {turnOrder, previousTurn: previousState?.currentTurn});
+            console.log('Loaded turn state:', { turnOrder, previousTurn: previousState?.currentTurn });
         } else {
             allChars.sort((a, b) => b.initiative - a.initiative);
             turnOrder = allChars.map(char => char.id);
@@ -114,6 +119,7 @@ export function updateCharacterCards(data) {
     isUpdatingCards = false;
 }
 
+// Отрисовка карт персонажей
 function renderCards(container, chars, data, allChars) {
     container.innerHTML = '';
 
@@ -146,6 +152,7 @@ function renderCards(container, chars, data, allChars) {
     });
 }
 
+// Показ модального окна с информацией о персонаже
 function showCharacterModal(char, data) {
     const modal = document.getElementById('characterModal');
     const modalCard = document.getElementById('modalCharacterCard');
@@ -179,6 +186,7 @@ function showCharacterModal(char, data) {
     };
 }
 
+// Обновление карт способностей
 export function updateAbilityCards(myTeam, data) {
     if (isUpdatingAbilities) return;
     isUpdatingAbilities = true;
@@ -250,6 +258,7 @@ export function updateAbilityCards(myTeam, data) {
     isUpdatingAbilities = false;
 }
 
+// Обновление лога боя
 export function updateBattleLog(data) {
     if (!data || !data.teams || !Array.isArray(data.teams)) {
         console.warn('Invalid data in updateBattleLog:', data);
@@ -257,7 +266,7 @@ export function updateBattleLog(data) {
     }
 
     if (!previousState || !previousState.teams || !Array.isArray(previousState.teams)) {
-        previousState = {...data, teams: data.teams.map(team => ({...team, characters: [...team.characters]}))};
+        previousState = { ...data, teams: data.teams.map(team => ({ ...team, characters: [...team.characters] })) };
         return;
     }
 
@@ -266,7 +275,7 @@ export function updateBattleLog(data) {
         const currTeam = data.teams[teamIdx]?.characters;
 
         if (!prevTeam || !currTeam) {
-            console.warn(`Team ${teamIdx} is missing in previousState or data:`, {prevTeam, currTeam});
+            console.warn(`Team ${teamIdx} is missing in previousState or data:`, { prevTeam, currTeam });
             continue;
         }
 
@@ -284,9 +293,10 @@ export function updateBattleLog(data) {
             }
         }
     }
-    previousState = {...data, teams: data.teams.map(team => ({...team, characters: [...team.characters]}))};
+    previousState = { ...data, teams: data.teams.map(team => ({ ...team, characters: [...team.characters] })) };
 }
 
+// Обновление заголовка хода
 export function updateTurnHeader(myTeam, data) {
     const turnHeader = document.getElementById('turnText');
     if (!turnHeader) return;
@@ -309,6 +319,7 @@ export function updateTurnHeader(myTeam, data) {
     }
 }
 
+// Обновление кнопки завершения хода
 export function updateEndTurnButton(myTeam, data) {
     const endTurnBtn = document.getElementById('endTurnBtn');
     if (!endTurnBtn) return;

@@ -13,6 +13,16 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// Node для алгоритма A*
+type Node struct {
+	X      int
+	Y      int
+	G      int
+	H      int
+	F      int
+	Parent *Node
+}
+
 func enableCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -198,7 +208,6 @@ func handleRestart(w http.ResponseWriter, r *http.Request) {
 	}
 
 	game.mutex.Lock()
-	defer game.mutex.Unlock()
 	game.SetupPhase = true
 	game.Phase = "setup"
 	game.Winner = -1
@@ -214,7 +223,7 @@ func handleRestart(w http.ResponseWriter, r *http.Request) {
 			game.Teams[teamID].Characters[i].Position = [2]int{-1, -1}
 		}
 	}
-
+	game.mutex.Unlock()
 	broadcastGameState(game)
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Room restarted"))
@@ -358,17 +367,22 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			switch action.Type {
 			case "move":
 				if game.Phase == "move" && action.Position[0] >= 0 && action.Position[0] < 16 && action.Position[1] >= 0 && action.Position[1] < 9 {
-					if distance(currentChar.Position, action.Position) <= currentChar.Stamina && game.Board[action.Position[0]][action.Position[1]] == -1 {
-						game.Board[currentChar.Position[0]][currentChar.Position[1]] = -1
-						currentChar.Position = action.Position
-						game.Board[action.Position[0]][action.Position[1]] = currentChar.ID
-						game.Phase = "action"
-						log.Printf("%s moved %s to (%d, %d)", claims.ClientID, currentChar.Name, action.Position[0], action.Position[1])
+					if game.Board[action.Position[0]][action.Position[1]] == -1 {
+						path := findPath(currentChar.Position[0], currentChar.Position[1], action.Position[0], action.Position[1], currentChar.Stamina, game.Board, currentChar.ID)
+						if len(path) > 0 {
+							game.Board[currentChar.Position[0]][currentChar.Position[1]] = -1
+							currentChar.Position = action.Position
+							game.Board[action.Position[0]][action.Position[1]] = currentChar.ID
+							game.Phase = "action"
+							log.Printf("%s moved %s to (%d, %d)", claims.ClientID, currentChar.Name, action.Position[0], action.Position[1])
+						} else {
+							log.Printf("%s tried to move %s to (%d, %d), but path blocked or out of stamina", claims.ClientID, currentChar.Name, action.Position[0], action.Position[1])
+						}
 					}
 				}
 			case "attack":
 				target := findCharacter(game, action.TargetID)
-				if game.Phase == "action" && target != nil && target.Team != currentChar.Team {
+				if (game.Phase == "move" || game.Phase == "action") && target != nil && target.Team != currentChar.Team {
 					weaponRange := game.WeaponsConfig[currentChar.Weapon].Range
 					if distanceToAttack(currentChar.Position, target.Position, game.WeaponsConfig[currentChar.Weapon]) <= weaponRange {
 						damage := calculateDamage(currentChar, target, game)
@@ -459,14 +473,4 @@ func validateToken(tokenString string) (*Claims, error) {
 		return nil, fmt.Errorf("invalid or expired token")
 	}
 	return claims, nil
-}
-
-func countPlacedCharacters(team Team) int {
-	count := 0
-	for _, char := range team.Characters {
-		if char.Position[0] != -1 && char.Position[1] != -1 {
-			count++
-		}
-	}
-	return count
 }

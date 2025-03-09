@@ -21,6 +21,7 @@
                 <span id="turnText">ВАШ ХОД</span>
             </div>
             <div id="phaseContainer">
+                <button id="restartGameBtn">Рестарт</button> <!-- Новая кнопка -->
                 <span class="phase"></span>
                 <span class="progress">
                     <span class="team0"></span>
@@ -37,6 +38,19 @@
         </div>
     </div>
     <div id="characterCards"></div>
+</div>
+
+<!-- Модальное окно для подтверждения рестарта -->
+<div id="restartModal" class="modal">
+    <div class="modal-content">
+        <span class="close" id="closeRestartModal">×</span>
+        <h2>Подтверждение рестарта</h2>
+        <p>Вы уверены, что хотите перезапустить игру? Все текущие данные будут потеряны.</p>
+        <div class="modal-buttons">
+            <button id="confirmRestartBtn">Да, перезапустить</button>
+            <button id="cancelRestartBtn">Отмена</button>
+        </div>
+    </div>
 </div>
 
 <div id="characterModal" class="modal">
@@ -93,6 +107,72 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ type: 'start', clientID: accessToken })
         });
+    });
+
+    // Открытие модального окна при нажатии на кнопку "Рестарт"
+    document.getElementById('restartGameBtn').addEventListener('click', () => {
+        document.getElementById('restartModal').style.display = 'block';
+    });
+
+    // Закрытие модального окна при нажатии на крестик
+    document.getElementById('closeRestartModal').addEventListener('click', () => {
+        document.getElementById('restartModal').style.display = 'none';
+    });
+
+    // Закрытие модального окна при нажатии на "Отмена"
+    document.getElementById('cancelRestartBtn').addEventListener('click', () => {
+        document.getElementById('restartModal').style.display = 'none';
+    });
+
+    // Подтверждение рестарта
+    document.getElementById('confirmRestartBtn').addEventListener('click', () => {
+        const accessToken = localStorage.getItem('accessToken');
+        const roomID = localStorage.getItem('currentRoom');
+
+        if (!accessToken || !roomID) {
+            alert('Ошибка: отсутствует accessToken или roomID');
+            return;
+        }
+
+        fetch('http://localhost:8080/restart', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accessToken, roomID })
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Ошибка сети');
+                }
+                return response.text();
+            })
+            .then(text => {
+                try {
+                    const data = JSON.parse(text);
+                    if (data.success) {
+                        alert('Игра успешно перезапущена!');
+                        renderGame(data.gameState); // Обновляем состояние игры
+                    } else {
+                        alert('Ошибка при перезапуске игры: ' + data.message);
+                    }
+                } catch (e) {
+                    console.log('Сервер вернул:', text);
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка:', error);
+                alert('Произошла ошибка при перезапуске игры');
+            })
+            .finally(() => {
+                document.getElementById('restartModal').style.display = 'none'; // Закрываем модальное окно
+            });
+    });
+
+    // Закрытие модального окна при клике вне его области
+    window.addEventListener('click', (event) => {
+        const restartModal = document.getElementById('restartModal');
+        if (event.target === restartModal) {
+            restartModal.style.display = 'none';
+        }
     });
 </script>
 </body>

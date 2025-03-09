@@ -35,7 +35,8 @@ function waitForImages() {
     );
 }
 
-document.getElementById('joinRoomBtn').addEventListener('click', () => {
+// Обработка клика по кнопке "Join Room"
+function handleJoinRoom() {
     const currentClientID = localStorage.getItem('clientID');
     if (!currentClientID) {
         console.error('Cannot join room: clientID is not set. Please register first.');
@@ -51,35 +52,56 @@ document.getElementById('joinRoomBtn').addEventListener('click', () => {
     setCurrentRoom(room);
     setIsSpectator(false);
 
-    connectWebSocket(room, false, async (event) => {
-        try {
-            const data = JSON.parse(event.data);
-            console.log('Received WebSocket data:', data);
-            setGameState(data);
-            myTeam = data.teamID;
+    connectWebSocket(room, false, handleWebSocketMessage);
+}
 
-            // Предварительно загружаем изображения
-            preloadImages(data);
+// Обработка сообщений от WebSocket
+async function handleWebSocketMessage(event) {
+    try {
+        const data = JSON.parse(event.data);
+        console.log('Received WebSocket data:', data);
+        setGameState(data);
+        myTeam = data.teamID;
 
-            // Ждём, пока все изображения загрузятся
-            await waitForImages().catch((error) => {
-                console.warn('Image loading failed or timed out, continuing without images:', error);
-            });
+        // Предварительно загружаем изображения
+        preloadImages(data);
 
-            // Принудительно обновляем интерфейс
-            updateCharacterCards(data);
-            updateAbilityCards(myTeam, data); // Передаём myTeam и data
-            drawBoard(data);
-            updatePhaseAndProgress(data);
-            updateBattleLog(data);
+        // Ждём, пока все изображения загрузятся
+        await waitForImages().catch((error) => {
+            console.warn('Image loading failed or timed out, continuing without images:', error);
+        });
 
-            // Устанавливаем обработчики событий только после получения первого состояния
-            if (!document.getElementById('gameCanvas').hasAttribute('data-listeners-set')) {
-                setupEventListeners(myTeam);
-                document.getElementById('gameCanvas').setAttribute('data-listeners-set', 'true');
-            }
-        } catch (error) {
-            console.error('Error processing WebSocket message:', error);
-        }
-    });
-});
+        // Обновляем интерфейс
+        updateUI(data);
+
+        // Устанавливаем обработчики событий только после получения первого состояния
+        setupEventListenersIfNeeded(myTeam);
+    } catch (error) {
+        console.error('Error processing WebSocket message:', error);
+    }
+}
+
+// Обновление интерфейса
+function updateUI(data) {
+    updateCharacterCards(data);
+    updateAbilityCards(myTeam, data); // Передаём myTeam и data
+    drawBoard(data);
+    updatePhaseAndProgress(data);
+    updateBattleLog(data);
+}
+
+// Установка обработчиков событий, если они еще не установлены
+function setupEventListenersIfNeeded(myTeam) {
+    if (!document.getElementById('gameCanvas').hasAttribute('data-listeners-set')) {
+        setupEventListeners(myTeam);
+        document.getElementById('gameCanvas').setAttribute('data-listeners-set', 'true');
+    }
+}
+
+// Инициализация
+function initialize() {
+    document.getElementById('joinRoomBtn').addEventListener('click', handleJoinRoom);
+}
+
+// Запуск приложения
+initialize();

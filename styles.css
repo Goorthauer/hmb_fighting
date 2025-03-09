@@ -855,3 +855,88 @@ body, html {
     background: linear-gradient(135deg, #64b5f6, #2196f3);
     transform: scale(1.05);
 }
+
+#restartGameBtn {
+    background: linear-gradient(135deg, #ff6b6b, #d32f2f);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    text-transform: uppercase;
+    transition: transform 0.2s, background 0.2s;
+    width: 100%;
+    padding: 10px;
+    margin-top: 10px;
+}
+
+#restartGameBtn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #ff8a8a, #f44336);
+    transform: scale(1.05);
+}
+
+#restartGameBtn:disabled {
+    background: linear-gradient(135deg, #666, #555);
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+/* Стили для модального окна подтверждения рестарта */
+#restartModal .modal-content {
+    background: linear-gradient(135deg, #2a2a40, #1e1e2f);
+    margin: 20% auto;
+    padding: 20px;
+    border: 2px solid #b8860b;
+    border-radius: 16px;
+    width: 300px;
+    max-width: 90%;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.7);
+    text-align: center;
+}
+
+#restartModal h2 {
+    color: #ffd700;
+    margin-bottom: 15px;
+}
+
+#restartModal p {
+    color: #fff;
+    margin-bottom: 20px;
+}
+
+.modal-buttons {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+#confirmRestartBtn {
+    background: linear-gradient(135deg, #4caf50, #388e3c);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+}
+
+#confirmRestartBtn:hover {
+    background: linear-gradient(135deg, #45a049, #357a38);
+    transform: scale(1.05);
+}
+
+#cancelRestartBtn {
+    background: linear-gradient(135deg, #ff6b6b, #d32f2f);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+}
+
+#cancelRestartBtn:hover {
+    background: linear-gradient(135deg, #ff8a8a, #f44336);
+    transform: scale(1.05);
+}

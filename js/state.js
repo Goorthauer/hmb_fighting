@@ -1,19 +1,26 @@
 import { findCharacter } from './utils.js';
 
-export let gameState = null;
-export let draggingCharacter = null;
-export let dragOffsetX = 0;
-export let dragOffsetY = 0;
-export let selectedCharacter = null;
-export let selectedAbility = null;
-export let isSpectator = false;
-export let currentRoom = localStorage.getItem('currentRoom') || null;
-export let movePath = [];
-export let currentChar = null;
+// Инициализация состояния
+let gameState = null;
+let draggingCharacter = null;
+let dragOffsetX = 0;
+let dragOffsetY = 0;
+let selectedCharacter = null;
+let selectedAbility = null;
+let isSpectator = false;
+let currentRoom = localStorage.getItem('currentRoom') || null;
+let movePath = [];
+let currentChar = null;
 
+// Установка состояния игры
 export function setGameState(state) {
     console.log('Setting game state:', state);
     gameState = state;
+    updateCurrentChar(state);
+}
+
+// Обновление текущего персонажа
+function updateCurrentChar(state) {
     if (state.currentTurn !== -1) {
         currentChar = findCharacter(state.teams, state.currentTurn);
         console.log('Updated currentChar:', currentChar);
@@ -22,30 +29,37 @@ export function setGameState(state) {
     }
 }
 
+// Установка перетаскиваемого персонажа
 export function setDraggingCharacter(char) {
     draggingCharacter = char;
 }
 
+// Установка смещения по оси X
 export function setDragOffsetX(x) {
     dragOffsetX = x;
 }
 
+// Установка смещения по оси Y
 export function setDragOffsetY(y) {
     dragOffsetY = y;
 }
 
+// Установка выбранного персонажа
 export function setSelectedCharacter(char) {
     selectedCharacter = char;
 }
 
+// Установка выбранной способности
 export function setSelectedAbility(ability) {
     selectedAbility = ability;
 }
 
+// Установка режима наблюдателя
 export function setIsSpectator(spectator) {
     isSpectator = spectator;
 }
 
+// Установка текущей комнаты
 export function setCurrentRoom(room) {
     currentRoom = room;
     if (room) {
@@ -55,6 +69,21 @@ export function setCurrentRoom(room) {
     }
 }
 
+// Установка пути перемещения
 export function setMovePath(path) {
     movePath = path;
 }
+
+// Экспорт состояния
+export {
+    gameState,
+    draggingCharacter,
+    dragOffsetX,
+    dragOffsetY,
+    selectedCharacter,
+    selectedAbility,
+    isSpectator,
+    currentRoom,
+    movePath,
+    currentChar
+};
