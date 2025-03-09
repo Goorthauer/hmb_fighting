@@ -38,6 +38,7 @@ func initGame(db Database) *Game {
 	firstCharactersTeam := make([]Character, 0)
 	secondCharactersTeam := make([]Character, 0)
 	for _, char := range characters {
+		char.SetAbilities(abilitiesConfig)
 		char.Position = [2]int{-1, -1} // Убираем дефолтную расстановку
 		if char.Team == 0 {
 			firstCharactersTeam = append(firstCharactersTeam, char)

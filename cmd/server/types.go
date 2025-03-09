@@ -1,8 +1,10 @@
 package main
 
 import (
+	"math/rand"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -42,23 +44,52 @@ type TeamConfig struct {
 }
 
 type Character struct {
-	ID         int      `json:"id"`
-	Name       string   `json:"name"`
-	Team       int      `json:"team"`
-	HP         int      `json:"hp"`
-	Stamina    int      `json:"stamina"`
-	AttackMin  int      `json:"attackMin"`
-	AttackMax  int      `json:"attackMax"`
-	Defense    int      `json:"defense"`
-	Initiative int      `json:"initiative"`
-	Weapon     string   `json:"weapon"`
-	Shield     string   `json:"shield"`
-	Height     int      `json:"height"`
-	Weight     int      `json:"weight"`
-	Position   [2]int   `json:"position"`
-	Abilities  []string `json:"abilities"` // Теперь это список идентификаторов способностей
-	Effects    []Effect `json:"effects"`
-	ImageURL   string   `json:"imageURL"`
+	ID             int      `json:"id"`
+	Name           string   `json:"name"`
+	Team           int      `json:"team"`
+	HP             int      `json:"hp"`
+	Stamina        int      `json:"stamina"`
+	AttackMin      int      `json:"attackMin"`
+	AttackMax      int      `json:"attackMax"`
+	Defense        int      `json:"defense"`
+	Initiative     int      `json:"initiative"`
+	Weapon         string   `json:"weapon"`
+	Shield         string   `json:"shield"`
+	Height         int      `json:"height"`
+	Weight         int      `json:"weight"`
+	Position       [2]int   `json:"position"`
+	CountOfAbility int      `json:"-"`
+	Abilities      []string `json:"abilities"` // Теперь это список идентификаторов способностей
+	Effects        []Effect `json:"effects"`
+	ImageURL       string   `json:"imageURL"`
+}
+
+func (c *Character) SetAbilities(abilitiesConfig map[string]Ability) {
+	// Инициализация генератора случайных чисел
+	rand.Seed(time.Now().UnixNano())
+
+	// Преобразуем ключи карты в слайс
+	keys := make([]string, 0, len(abilitiesConfig))
+	for key := range abilitiesConfig {
+		keys = append(keys, key)
+	}
+
+	// Очищаем текущие способности персонажа
+	c.Abilities = make([]string, 0)
+
+	// Выбираем случайные способности
+	for i := 0; i < c.CountOfAbility; i++ {
+		if len(keys) == 0 {
+			break // Если пул способностей пуст, выходим из цикла
+		}
+
+		// Выбираем случайный индекс
+		randomIndex := rand.Intn(len(keys))
+		// Добавляем выбранную способность в слайс персонажа
+		c.Abilities = append(c.Abilities, keys[randomIndex])
+		// Удаляем выбранную способность из пула, чтобы избежать дублирования
+		keys = append(keys[:randomIndex], keys[randomIndex+1:]...)
+	}
 }
 
 type Ability struct {
