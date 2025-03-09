@@ -3,13 +3,8 @@ package main
 import (
 	"fmt"
 	"log"
+	"sync"
 )
-
-func distance(pos1, pos2 [2]int) int {
-	dist := abs(pos1[0]-pos2[0]) + abs(pos1[1]-pos2[1])
-	log.Printf("Distance from (%d, %d) to (%d, %d) = %d", pos1[0], pos1[1], pos2[0], pos2[1], dist)
-	return dist
-}
 
 func distanceToAbility(pos1, pos2 [2]int) int {
 	dx := abs(pos1[0] - pos2[0])
@@ -109,3 +104,5 @@ func findPath(startX, startY, endX, endY, stamina int, board [16][9]int, current
 func heuristic(x1, y1, x2, y2 int) int {
 	return abs(x1-x2) + abs(y1-y2)
 }
+
+var mutex = sync.Mutex{}

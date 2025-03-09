@@ -3,16 +3,10 @@ package main
 import (
 	"log"
 	"math/rand"
-	"sync"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
-
-var mutex = sync.Mutex{}
-var rooms = make(map[string]*Game)
-var users = make(map[string]User)
-var usersWithRefresh = make(map[string]User)
 
 // initGame создаёт новую игру, получая данные из базы
 func initGame(db Database) *Game {

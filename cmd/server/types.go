@@ -129,3 +129,13 @@ type Game struct {
 	SetupPhase      bool // Фаза расстановки
 	Winner          int  // ID команды-победителя, -1 если нет
 }
+
+// Node для алгоритма A*
+type Node struct {
+	X      int
+	Y      int
+	G      int
+	H      int
+	F      int
+	Parent *Node
+}

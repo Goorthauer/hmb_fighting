@@ -8,12 +8,15 @@ import (
 )
 
 func main() {
-	http.Handle("/ws", enableCORS(http.HandlerFunc(handleWebSocket)))
-	http.Handle("/register", enableCORS(http.HandlerFunc(handleRegister)))
-	http.Handle("/refresh", enableCORS(http.HandlerFunc(handleRefresh)))
-	http.Handle("/check-client", enableCORS(http.HandlerFunc(handleCheckClient)))
-	http.Handle("/create-room", enableCORS(http.HandlerFunc(handleCreateRoom)))
-	http.Handle("/restart", enableCORS(http.HandlerFunc(handleRestart)))
+	db := NewMockDatabase() // или NewRealDatabase(), в зависимости от реализации
+	handler := NewHandler(db)
+
+	http.Handle("/ws", enableCORS(http.HandlerFunc(handler.handleWebSocket)))
+	http.Handle("/register", enableCORS(http.HandlerFunc(handler.handleRegister)))
+	http.Handle("/refresh", enableCORS(http.HandlerFunc(handler.handleRefresh)))
+	http.Handle("/check-client", enableCORS(http.HandlerFunc(handler.handleCheckClient)))
+	http.Handle("/create-room", enableCORS(http.HandlerFunc(handler.handleCreateRoom)))
+	http.Handle("/restart", enableCORS(http.HandlerFunc(handler.handleRestart)))
 	http.Handle("/swagger/", swagger.WrapHandler)
 
 	log.Println("Starting server on :8080")

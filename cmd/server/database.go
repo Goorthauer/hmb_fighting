@@ -7,4 +7,10 @@ type Database interface {
 	GetTeamsConfig() (map[int]TeamConfig, error)
 	GetCharacters() ([]Character, error)
 	GetAbilities() (map[string]Ability, error) // Новый метод
+
+	SetUser(refreshToken string, user User) error
+	GetUserByEmail(email string) (User, error)
+	GetUserByRefresh(token string) (User, error)
+	GetRoom(roomID string) (*Game, error)
+	SetRoom(game *Game) error
 }

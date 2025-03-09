@@ -13,16 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// Node для алгоритма A*
-type Node struct {
-	X      int
-	Y      int
-	G      int
-	H      int
-	F      int
-	Parent *Node
-}
-
+// Middleware для включения CORS
 func enableCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -36,11 +27,23 @@ func enableCORS(next http.Handler) http.Handler {
 	})
 }
 
+// Генерация уникального ClientID
 func generateClientID() string {
 	return fmt.Sprintf("%d-%d", time.Now().UnixNano(), rand.Intn(1000))
 }
 
-func handleRegister(w http.ResponseWriter, r *http.Request) {
+// Структура Handler для хранения подключения к базе данных
+type Handler struct {
+	db Database
+}
+
+// Конструктор для Handler
+func NewHandler(db Database) *Handler {
+	return &Handler{db: db}
+}
+
+// Обработка регистрации пользователя
+func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
 	var currentUser User
 	if err := json.NewDecoder(r.Body).Decode(&currentUser); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
@@ -50,21 +53,31 @@ func handleRegister(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Name and email are required", http.StatusBadRequest)
 		return
 	}
-	user, ok := users[currentUser.Email]
-	if !ok {
+
+	// Получаем пользователя из базы данных
+	user, err := h.db.GetUserByEmail(currentUser.Email)
+	if err != nil {
+		http.Error(w, "Failed to get user", http.StatusInternalServerError)
+		return
+	}
+
+	if user.Email == "" { // Если пользователь не найден
 		user = currentUser
 		user.ID = generateClientID()
-		users[user.Email] = user
 	}
+
 	tokenPair, err := generateTokenPair(user, "spectator")
 	if err != nil {
 		http.Error(w, "Failed to generate tokens", http.StatusInternalServerError)
 		return
 	}
 
-	mutex.Lock()
-	usersWithRefresh[tokenPair.RefreshToken] = user
-	mutex.Unlock()
+	// Сохраняем пользователя с refresh токеном
+	err = h.db.SetUser(tokenPair.RefreshToken, user)
+	if err != nil {
+		http.Error(w, "Failed to save user with refresh token", http.StatusInternalServerError)
+		return
+	}
 
 	response := struct {
 		AccessToken  string `json:"accessToken"`
@@ -81,7 +94,8 @@ func handleRegister(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Registered user: %s (%s) with ClientID: %s", user.Name, user.Email, response.ClientID)
 }
 
-func handleRefresh(w http.ResponseWriter, r *http.Request) {
+// Обработка обновления токена
+func (h *Handler) handleRefresh(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		RefreshToken string `json:"refreshToken"`
 	}
@@ -89,14 +103,23 @@ func handleRefresh(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	user, ok := findUserByRefreshToken(req.RefreshToken)
-	if !ok {
+
+	user, err := h.db.GetUserByRefresh(req.RefreshToken)
+	if err != nil {
 		http.Error(w, "Invalid refresh token", http.StatusUnauthorized)
 		return
 	}
+
 	tokenPair, err := refreshToken(req.RefreshToken)
 	if err != nil {
 		http.Error(w, "Invalid refresh token", http.StatusUnauthorized)
+		return
+	}
+
+	// Обновляем refresh токен в базе данных
+	err = h.db.SetUser(tokenPair.RefreshToken, user)
+	if err != nil {
+		http.Error(w, "Failed to update refresh token", http.StatusInternalServerError)
 		return
 	}
 
@@ -114,14 +137,8 @@ func handleRefresh(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func findUserByRefreshToken(refreshToken string) (User, bool) {
-	mutex.Lock()
-	defer mutex.Unlock()
-	user, ok := usersWithRefresh[refreshToken]
-	return user, ok
-}
-
-func handleCheckClient(w http.ResponseWriter, r *http.Request) {
+// Обработка проверки клиента
+func (h *Handler) handleCheckClient(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -142,20 +159,21 @@ func handleCheckClient(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mutex.Lock()
-	_, exists := users[req.ClientID]
-	mutex.Unlock()
-
-	if claims.ClientID != req.ClientID {
-		exists = false
+	user, err := h.db.GetUserByEmail(claims.Email)
+	if err != nil {
+		http.Error(w, "Failed to get user", http.StatusInternalServerError)
+		return
 	}
+
+	exists := user.ID == req.ClientID && user.ID == claims.ClientID
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]bool{"valid": exists})
 	log.Printf("Checked clientID: %s, valid: %v", req.ClientID, exists)
 }
 
-func handleCreateRoom(w http.ResponseWriter, r *http.Request) {
+// Обработка создания комнаты
+func (h *Handler) handleCreateRoom(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		AccessToken string `json:"accessToken"`
 	}
@@ -170,20 +188,22 @@ func handleCreateRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db := NewMockDatabase()
-	game := initGame(db)
+	game := initGame(h.db)
 	game.Players[0] = claims.ClientID
 
-	mutex.Lock()
-	rooms[game.GameSessionId] = game
-	mutex.Unlock()
+	err = h.db.SetRoom(game)
+	if err != nil {
+		http.Error(w, "Failed to save room", http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"roomID": game.GameSessionId})
 	log.Printf("Room %s created by %s", game.GameSessionId, claims.ClientID)
 }
 
-func handleRestart(w http.ResponseWriter, r *http.Request) {
+// Обработка рестарта комнаты
+func (h *Handler) handleRestart(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		AccessToken string `json:"accessToken"`
 		RoomID      string `json:"roomID"`
@@ -199,11 +219,14 @@ func handleRestart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mutex.Lock()
-	game, exists := rooms[req.RoomID]
-	mutex.Unlock()
-	if !exists || (game.Players[0] != claims.ClientID && game.Players[1] != claims.ClientID) {
-		http.Error(w, "Room not found or unauthorized", http.StatusForbidden)
+	game, err := h.db.GetRoom(req.RoomID)
+	if err != nil || game == nil {
+		http.Error(w, "Room not found", http.StatusNotFound)
+		return
+	}
+
+	if game.Players[0] != claims.ClientID && game.Players[1] != claims.ClientID {
+		http.Error(w, "Unauthorized", http.StatusForbidden)
 		return
 	}
 
@@ -230,7 +253,8 @@ func handleRestart(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Room %s restarted by %s", req.RoomID, claims.ClientID)
 }
 
-func handleWebSocket(w http.ResponseWriter, r *http.Request) {
+// Обработка WebSocket соединения
+func (h *Handler) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	room := r.URL.Query().Get("room")
 	accessToken := r.URL.Query().Get("accessToken")
 
@@ -260,10 +284,8 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close()
 
-	mutex.Lock()
-	game, exists := rooms[room]
-	mutex.Unlock()
-	if !exists {
+	game, err := h.db.GetRoom(room)
+	if err != nil || game == nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(w).Encode(map[string]string{"error": "Room not found"})
@@ -324,103 +346,128 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 		game.mutex.Lock()
 		if game.Phase == "setup" {
-			if action.Type == "place" && client.TeamID >= 0 {
-				char := findCharacter(game, action.CharacterID)
-				if char != nil && char.Team == client.TeamID && action.Position[0] >= 0 && action.Position[0] < 16 && action.Position[1] >= 0 && action.Position[1] < 9 {
-					if game.Board[action.Position[0]][action.Position[1]] == -1 && ((char.Team == 0 && action.Position[0] < 8) || (char.Team == 1 && action.Position[0] >= 8)) {
-						char.Position = action.Position
-						game.Board[action.Position[0]][action.Position[1]] = char.ID
-						log.Printf("%s placed %s at (%d, %d)", client.ClientID, char.Name, action.Position[0], action.Position[1])
-					}
-				}
-			} else if action.Type == "start" && client.TeamID >= 0 {
-				if len(game.Players) == 2 {
-					allPlaced := true
-					for _, team := range game.Teams {
-						placed := 0
-						for _, char := range team.Characters {
-							if char.Position[0] != -1 {
-								placed++
-							}
-						}
-						if placed < 5 {
-							allPlaced = false
-							break
-						}
-					}
-					if allPlaced {
-						game.SetupPhase = false
-						game.Phase = "move"
-						game.CurrentTurn = game.Teams[0].Characters[0].ID
-						log.Printf("Game %s started by %s", game.GameSessionId, claims.ClientID)
-					}
-				}
-			}
+			handleSetupPhase(game, client, action)
 		} else {
-			currentChar := findCharacter(game, game.CurrentTurn)
-			if currentChar == nil || currentChar.Team != client.TeamID {
-				log.Printf("Not your turn or invalid character: %s", claims.ClientID)
-				game.mutex.Unlock()
-				continue
-			}
-
-			switch action.Type {
-			case "move":
-				if game.Phase == "move" && action.Position[0] >= 0 && action.Position[0] < 16 && action.Position[1] >= 0 && action.Position[1] < 9 {
-					if game.Board[action.Position[0]][action.Position[1]] == -1 {
-						path := findPath(currentChar.Position[0], currentChar.Position[1], action.Position[0], action.Position[1], currentChar.Stamina, game.Board, currentChar.ID)
-						if len(path) > 0 {
-							game.Board[currentChar.Position[0]][currentChar.Position[1]] = -1
-							currentChar.Position = action.Position
-							game.Board[action.Position[0]][action.Position[1]] = currentChar.ID
-							game.Phase = "action"
-							log.Printf("%s moved %s to (%d, %d)", claims.ClientID, currentChar.Name, action.Position[0], action.Position[1])
-						} else {
-							log.Printf("%s tried to move %s to (%d, %d), but path blocked or out of stamina", claims.ClientID, currentChar.Name, action.Position[0], action.Position[1])
-						}
-					}
-				}
-			case "attack":
-				target := findCharacter(game, action.TargetID)
-				if (game.Phase == "move" || game.Phase == "action") && target != nil && target.Team != currentChar.Team {
-					weaponRange := game.WeaponsConfig[currentChar.Weapon].Range
-					if distanceToAttack(currentChar.Position, target.Position, game.WeaponsConfig[currentChar.Weapon]) <= weaponRange {
-						damage := calculateDamage(currentChar, target, game)
-						target.HP -= damage
-						if target.HP <= 0 {
-							game.Board[target.Position[0]][target.Position[1]] = -1
-						}
-						log.Printf("%s attacked %s for %d damage (HP left: %d)", currentChar.Name, target.Name, damage, target.HP)
-						nextTurn(game)
-					}
-				}
-			case "ability":
-				target := findCharacter(game, action.TargetID)
-				if game.Phase == "action" && target != nil && target.Team != currentChar.Team {
-					ability, exists := game.AbilitiesConfig[strings.ToLower(action.Ability)]
-					if exists && distanceToAbility(currentChar.Position, target.Position) <= ability.Range {
-						for i, abilityID := range currentChar.Abilities {
-							if abilityID == action.Ability {
-								applyWrestlingMove(game, currentChar, target, strings.ToLower(ability.Name))
-								currentChar.Abilities = append(currentChar.Abilities[:i], currentChar.Abilities[i+1:]...)
-								nextTurn(game)
-								break
-							}
-						}
-					}
-				}
-			case "end_turn":
-				if game.Phase == "move" || game.Phase == "action" {
-					nextTurn(game)
-					log.Printf("%s ended turn", claims.ClientID)
-				}
-			}
+			handleGamePhase(game, client, action, claims)
 		}
 		game.mutex.Unlock()
 		broadcastGameState(game)
 	}
 }
 
+// Остальные функции (handleSetupPhase, handleGamePhase, broadcastGameState и т.д.) остаются без изменений.
+
+// Обработка фазы настройки
+func handleSetupPhase(game *Game, client *Client, action Action) {
+	if action.Type == "place" && client.TeamID >= 0 {
+		char := findCharacter(game, action.CharacterID)
+		if char != nil && char.Team == client.TeamID && action.Position[0] >= 0 && action.Position[0] < 16 && action.Position[1] >= 0 && action.Position[1] < 9 {
+			if game.Board[action.Position[0]][action.Position[1]] == -1 && ((char.Team == 0 && action.Position[0] < 8) || (char.Team == 1 && action.Position[0] >= 8)) {
+				char.Position = action.Position
+				game.Board[action.Position[0]][action.Position[1]] = char.ID
+				log.Printf("%s placed %s at (%d, %d)", client.ClientID, char.Name, action.Position[0], action.Position[1])
+			}
+		}
+	} else if action.Type == "start" && client.TeamID >= 0 {
+		if len(game.Players) == 2 {
+			allPlaced := true
+			for _, team := range game.Teams {
+				placed := 0
+				for _, char := range team.Characters {
+					if char.Position[0] != -1 {
+						placed++
+					}
+				}
+				if placed < 5 {
+					allPlaced = false
+					break
+				}
+			}
+			if allPlaced {
+				game.SetupPhase = false
+				game.Phase = "move"
+				game.CurrentTurn = game.Teams[0].Characters[0].ID
+				log.Printf("Game %s started by %s", game.GameSessionId, client.ClientID)
+			}
+		}
+	}
+}
+
+// Обработка игровой фазы
+func handleGamePhase(game *Game, client *Client, action Action, claims *Claims) {
+	currentChar := findCharacter(game, game.CurrentTurn)
+	if currentChar == nil || currentChar.Team != client.TeamID {
+		log.Printf("Not your turn or invalid character: %s", claims.ClientID)
+		return
+	}
+
+	switch action.Type {
+	case "move":
+		handleMoveAction(game, currentChar, action)
+	case "attack":
+		handleAttackAction(game, currentChar, action)
+	case "ability":
+		handleAbilityAction(game, currentChar, action)
+	case "end_turn":
+		nextTurn(game)
+		log.Printf("%s ended turn", claims.ClientID)
+	}
+}
+
+// Обработка действия перемещения
+func handleMoveAction(game *Game, currentChar *Character, action Action) {
+	if game.Phase == "move" && action.Position[0] >= 0 && action.Position[0] < 16 && action.Position[1] >= 0 && action.Position[1] < 9 {
+		if game.Board[action.Position[0]][action.Position[1]] == -1 {
+			path := findPath(currentChar.Position[0], currentChar.Position[1], action.Position[0], action.Position[1], currentChar.Stamina, game.Board, currentChar.ID)
+			if len(path) > 0 {
+				game.Board[currentChar.Position[0]][currentChar.Position[1]] = -1
+				currentChar.Position = action.Position
+				game.Board[action.Position[0]][action.Position[1]] = currentChar.ID
+				game.Phase = "action"
+				log.Printf("%s moved %s to (%d, %d)", currentChar.Name, currentChar.Name, action.Position[0], action.Position[1])
+			} else {
+				log.Printf("%s tried to move %s to (%d, %d), but path blocked or out of stamina", currentChar.Name, currentChar.Name, action.Position[0], action.Position[1])
+			}
+		}
+	}
+}
+
+// Обработка действия атаки
+func handleAttackAction(game *Game, currentChar *Character, action Action) {
+	target := findCharacter(game, action.TargetID)
+	if (game.Phase == "move" || game.Phase == "action") && target != nil && target.Team != currentChar.Team {
+		weaponRange := game.WeaponsConfig[currentChar.Weapon].Range
+		if distanceToAttack(currentChar.Position, target.Position, game.WeaponsConfig[currentChar.Weapon]) <= weaponRange {
+			damage := calculateDamage(currentChar, target, game)
+			target.HP -= damage
+			if target.HP <= 0 {
+				game.Board[target.Position[0]][target.Position[1]] = -1
+			}
+			log.Printf("%s attacked %s for %d damage (HP left: %d)", currentChar.Name, target.Name, damage, target.HP)
+			nextTurn(game)
+		}
+	}
+}
+
+// Обработка действия способности
+func handleAbilityAction(game *Game, currentChar *Character, action Action) {
+	target := findCharacter(game, action.TargetID)
+	if game.Phase == "action" && target != nil && target.Team != currentChar.Team {
+		ability, exists := game.AbilitiesConfig[strings.ToLower(action.Ability)]
+		if exists && distanceToAbility(currentChar.Position, target.Position) <= ability.Range {
+			for i, abilityID := range currentChar.Abilities {
+				if abilityID == action.Ability {
+					applyWrestlingMove(game, currentChar, target, strings.ToLower(ability.Name))
+					currentChar.Abilities = append(currentChar.Abilities[:i], currentChar.Abilities[i+1:]...)
+					nextTurn(game)
+					break
+				}
+			}
+		}
+	}
+}
+
+// Трансляция состояния игры всем клиентам
 func broadcastGameState(game *Game) {
 	game.mutex.Lock()
 	defer game.mutex.Unlock()
@@ -461,6 +508,7 @@ func broadcastGameState(game *Game) {
 	}
 }
 
+// Валидация токена
 func validateToken(tokenString string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 		return jwtKey, nil

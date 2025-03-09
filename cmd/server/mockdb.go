@@ -208,6 +208,57 @@ func (m *MockDatabase) GetCharacters() ([]Character, error) {
 }
 
 // NewMockDatabase создаёт новый экземпляр MockDatabase
-func NewMockDatabase() *MockDatabase {
+func NewMockDatabase() Database {
 	return &MockDatabase{}
 }
+
+func (m *MockDatabase) SetUser(refreshToken string, user User) error {
+	mutex.Lock()
+	users[user.Email] = user
+	if refreshToken != "" {
+		usersWithRefresh[refreshToken] = user
+	}
+	mutex.Unlock()
+	return nil
+}
+
+func (m *MockDatabase) GetUserByEmail(email string) (User, error) {
+	mutex.Lock()
+	user, exists := users[email]
+	mutex.Unlock()
+	if exists {
+		return user, nil
+	}
+	return User{}, nil
+}
+
+func (m *MockDatabase) GetUserByRefresh(token string) (User, error) {
+	mutex.Lock()
+	user, exists := usersWithRefresh[token]
+	mutex.Unlock()
+	if exists {
+		return user, nil
+	}
+	return User{}, nil
+}
+
+func (m *MockDatabase) GetRoom(roomID string) (*Game, error) {
+	mutex.Lock()
+	game, exists := rooms[roomID]
+	mutex.Unlock()
+	if exists {
+		return game, nil
+	}
+	return nil, nil
+}
+
+func (m *MockDatabase) SetRoom(game *Game) error {
+	mutex.Lock()
+	rooms[game.GameSessionId] = game
+	mutex.Unlock()
+	return nil
+}
+
+var rooms = make(map[string]*Game)
+var users = make(map[string]User)
+var usersWithRefresh = make(map[string]User)
