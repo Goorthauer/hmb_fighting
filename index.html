@@ -31,12 +31,20 @@
         </div>
     </div>
 </div>
-
+<!-- Экран выбора команды -->
+<!-- Экран выбора команды -->
+<div class="registration-container hidden" id="team-selection">
+    <div id="team-form" class="team-selection-container">
+        <h2>Select Your Team</h2>
+        <div id="available-teams" class="teams-grid"></div>
+        <button id="confirm-team-btn" onclick="confirmTeamSelection()" disabled>Confirm Selection</button>
+    </div>
+</div>
 <script>
     function checkAuth() {
         const accessToken = localStorage.getItem('accessToken');
         const clientID = localStorage.getItem('clientID');
-        console.log('Checking auth:', { accessToken, clientID });
+        console.log('Checking auth:', {accessToken, clientID});
         if (accessToken && clientID) {
             console.log('User authenticated, showing room selection');
             document.getElementById('login-container').classList.add('hidden');
@@ -57,11 +65,11 @@
             return;
         }
 
-        console.log('Sending login request:', { name, email });
+        console.log('Sending login request:', {name, email});
         fetch('http://localhost:8080/register', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, email })
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name, email})
         })
             .then(response => {
                 console.log('Response received:', response);
@@ -73,7 +81,11 @@
                 localStorage.setItem('accessToken', data.accessToken);
                 localStorage.setItem('refreshToken', data.refreshToken);
                 localStorage.setItem('clientID', data.clientID);
-                console.log('Stored in localStorage:', { accessToken: data.accessToken, refreshToken: data.refreshToken, clientID: data.clientID });
+                console.log('Stored in localStorage:', {
+                    accessToken: data.accessToken,
+                    refreshToken: data.refreshToken,
+                    clientID: data.clientID
+                });
                 document.getElementById('login-container').classList.add('hidden');
                 document.getElementById('room-selection').classList.remove('hidden');
                 console.log('Switched to room selection');
@@ -95,12 +107,16 @@
         console.log('Creating room with accessToken:', accessToken);
         fetch('http://localhost:8080/create-room', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ accessToken: accessToken })
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({accessToken: accessToken})
         })
             .then(response => {
                 if (!response.ok) {
                     return response.text().then(text => {
+                        if (response.status === 401) {
+                            localStorage.clear(); // Полная очистка
+                            window.location.href = '/index.html';
+                        }
                         throw new Error(`Server responded with ${response.status}: ${text}`);
                     });
                 }
@@ -122,20 +138,184 @@
             });
     }
 
+    let selectedTeamID = null;
+
+    function loadAvailableTeams(roomID) {
+        const accessToken = localStorage.getItem('accessToken');
+        fetch('http://localhost:8080/select-team', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({roomID: roomID, accessToken: accessToken})
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.status} - ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                const availableTeamsDiv = document.getElementById('available-teams');
+                const confirmBtn = document.getElementById('confirm-team-btn');
+                availableTeamsDiv.innerHTML = '';
+
+                // Проходим по всем доступным командам
+                for (const [teamID, teamConfig] of Object.entries(data.availableTeams)) {
+                    const teamDiv = document.createElement('div');
+                    teamDiv.className = 'team-card';
+                    teamDiv.dataset.teamID = teamID;
+
+                    // Создаем контейнер для персонажей
+                    const charactersDiv = document.createElement('div');
+                    charactersDiv.className = 'characters';
+
+                    // Получаем персонажей для этой команды из data.characters
+                    const teamCharacters = data.characters[teamID] || [];
+                    teamCharacters.forEach(char => {
+                        const charDiv = document.createElement('div');
+                        charDiv.className = 'character-preview';
+                        charDiv.innerHTML = `
+                        <div class="image" style="background-image: url('${char.imageURL || './static/characters/default.png'}');"></div>
+                        <div class="name">${char.name}</div>
+                    `;
+                        charactersDiv.appendChild(charDiv);
+                    });
+
+                    // Добавляем информацию о команде и персонажей
+                    teamDiv.innerHTML = `
+                    <div class="team-icon" style="background-image: url('${teamConfig.iconURL}');"></div>
+                    <h3>${teamConfig.name}</h3>
+                    <p>${teamConfig.description}</p>
+                `;
+                    teamDiv.appendChild(charactersDiv);
+
+                    // Обработчик выбора команды
+                    teamDiv.addEventListener('click', () => {
+                        if (selectedTeamID) {
+                            const prevSelected = availableTeamsDiv.querySelector(`.team-card[data-team-id="${selectedTeamID}"]`);
+                            prevSelected.classList.remove('selected');
+                        }
+                        selectedTeamID = teamID;
+                        teamDiv.classList.add('selected');
+                        confirmBtn.disabled = false;
+                    });
+
+                    availableTeamsDiv.appendChild(teamDiv);
+                }
+            })
+            .catch(err => {
+                console.error('Failed to load available teams:', err.message);
+                showErrorModal('Failed to load available teams. Please check your connection or try again.', () => {
+                    loadAvailableTeams(roomID);
+                });
+            });
+    }
+
+    function selectTeam(teamID) {
+        const roomID = localStorage.getItem('currentRoom');
+        const accessToken = localStorage.getItem('accessToken');
+        const numericTeamID = parseInt(teamID, 10);
+        fetch('http://localhost:8080/set-team', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                roomID: roomID,
+                realTeamID: numericTeamID, // Здесь может быть логика для определения реальной команды
+                accessToken: accessToken
+            })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = 'game.html';
+                } else {
+                    alert('Failed to select team. Please try again.');
+                }
+            })
+            .catch(err => {
+                console.error('Failed to select team:', err);
+                alert('Failed to select team. Please try again.');
+            });
+    }
+
+    function confirmTeamSelection() {
+        if (selectedTeamID) {
+            selectTeam(selectedTeamID);
+        } else {
+            alert('Please select a team first!');
+        }
+    }
+
+    // Функция для отображения модального окна с ошибкой (оставим как в предыдущем примере)
+    function showErrorModal(message, retryCallback) {
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.innerHTML = `
+        <div class="modal-content">
+            <span class="close">×</span>
+            <h2>Error</h2>
+            <p>${message}</p>
+            <div class="modal-buttons">
+                <button id="retry-btn">Retry</button>
+                <button id="close-btn">Close</button>
+            </div>
+        </div>
+    `;
+        document.body.appendChild(modal);
+
+        const closeBtn = modal.querySelector('.close');
+        const retryBtn = modal.querySelector('#retry-btn');
+        const closeModalBtn = modal.querySelector('#close-btn');
+
+        modal.style.display = 'block';
+
+        closeBtn.onclick = () => modal.remove();
+        closeModalBtn.onclick = () => modal.remove();
+        retryBtn.onclick = () => {
+            modal.remove();
+            if (retryCallback) retryCallback();
+        };
+
+        window.onclick = (event) => {
+            if (event.target === modal) modal.remove();
+        };
+    }
+
+    function checkTeamSelection(roomID) {
+        const accessToken = localStorage.getItem('accessToken');
+        fetch('http://localhost:8080/check-teams', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({roomID: roomID, accessToken: accessToken})
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.allTeamsSelected) {
+                    document.getElementById('team-selection').classList.add('hidden');
+                    document.getElementById('room-selection').classList.remove('hidden');
+                }
+            })
+            .catch(err => {
+                console.error('Failed to check team selection:', err);
+            });
+    }
+
     function copyRoomId() {
         const roomId = document.getElementById('created-room-id').textContent;
         navigator.clipboard.writeText(roomId)
-            .then(() => {
-                console.log('Room ID copied to clipboard:', roomId);
-                alert('Room ID copied to clipboard! Share it with your friend.');
-                // Теперь перенаправляем в игру после копирования
-                window.location.href = 'game.html';
+            .then(() => { // Убрали data
+                console.log('Room ID copied:', roomId);
+                alert('Room ID copied! Now select your team.');
+                document.getElementById('room-id-display').classList.add('hidden');
+                document.getElementById('room-selection').classList.add('hidden');
+                document.getElementById('team-selection').classList.remove('hidden');
+                loadAvailableTeams(roomId);
             })
             .catch(err => {
                 console.error('Failed to copy Room ID:', err);
                 alert('Failed to copy Room ID.');
             });
     }
+
 
     function joinRoom() {
         const roomID = document.getElementById('room-id').value.trim();
@@ -144,12 +324,12 @@
             return;
         }
         localStorage.setItem('currentRoom', roomID);
-        console.log('Joining room, redirecting to game.html with roomID:', roomID);
-        window.location.href = 'game.html';
+        document.getElementById('room-id-display').classList.add('hidden');
+        document.getElementById('room-selection').classList.add('hidden');
+        document.getElementById('team-selection').classList.remove('hidden');
+        loadAvailableTeams(roomID);
     }
 
-    // Удаляем некорректный addEventListener, так как кнопка уже использует onclick
-    // document.getElementById('createRoomBtn').addEventListener('click', createRoom);
 </script>
 </body>
 </html>

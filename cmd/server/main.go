@@ -16,6 +16,9 @@ func main() {
 	http.Handle("/refresh", enableCORS(http.HandlerFunc(handler.handleRefresh)))
 	http.Handle("/check-client", enableCORS(http.HandlerFunc(handler.handleCheckClient)))
 	http.Handle("/create-room", enableCORS(http.HandlerFunc(handler.handleCreateRoom)))
+	http.Handle("/select-team", enableCORS(http.HandlerFunc(handler.handleSelectTeam)))
+	http.Handle("/check-teams", enableCORS(http.HandlerFunc(handler.handleCheckTeams)))
+	http.Handle("/set-team", enableCORS(http.HandlerFunc(handler.handleSetTeam)))
 	http.Handle("/restart", enableCORS(http.HandlerFunc(handler.handleRestart)))
 	http.Handle("/swagger/", swagger.WrapHandler)
 

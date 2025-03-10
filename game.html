@@ -92,7 +92,6 @@
             eventListenersSet = true;
         }
     }
-
     connectWebSocket(room, false, (event) => {
         const data = JSON.parse(event.data);
         console.log('Received WebSocket data:', data);

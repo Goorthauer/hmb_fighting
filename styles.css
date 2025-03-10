@@ -204,9 +204,15 @@ body, html {
 }
 
 @keyframes stackBreath {
-    0% { transform: rotate(-5deg) translateY(0); }
-    50% { transform: rotate(-5deg) translateY(-2.5px); }
-    100% { transform: rotate(-5deg) translateY(0); }
+    0% {
+        transform: rotate(-5deg) translateY(0);
+    }
+    50% {
+        transform: rotate(-5deg) translateY(-2.5px);
+    }
+    100% {
+        transform: rotate(-5deg) translateY(0);
+    }
 }
 
 .no-abilities-stack .no-abilities-card:nth-child(1) {
@@ -214,8 +220,14 @@ body, html {
 }
 
 @keyframes fadeIn {
-    0% { opacity: 0; transform: translateY(10px); }
-    100% { opacity: 1; transform: translateY(0); }
+    0% {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* Центральная панель: Игровое поле */
@@ -231,7 +243,7 @@ body, html {
 #gameCanvas {
     width: 960px;
     height: 540px;
-    background: #fff;
+    background: #e2e2e2;
     border: 3px solid #444;
     border-radius: 16px;
     box-shadow: 0 0 30px rgba(0, 0, 0, 0.7);
@@ -278,9 +290,15 @@ body, html {
 }
 
 @keyframes glow {
-    0% { text-shadow: 0 0 10px rgba(255, 215, 0, 0.7); }
-    50% { text-shadow: 0 0 20px rgba(255, 215, 0, 1), 0 0 30px rgba(255, 215, 0, 0.8); }
-    100% { text-shadow: 0 0 10px rgba(255, 215, 0, 0.7); }
+    0% {
+        text-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+    }
+    50% {
+        text-shadow: 0 0 20px rgba(255, 215, 0, 1), 0 0 30px rgba(255, 215, 0, 0.8);
+    }
+    100% {
+        text-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+    }
 }
 
 #turnHeader::before {
@@ -295,8 +313,12 @@ body, html {
 }
 
 @keyframes slide {
-    0% { left: -100%; }
-    100% { left: 100%; }
+    0% {
+        left: -100%;
+    }
+    100% {
+        left: 100%;
+    }
 }
 
 #endTurnBtn {
@@ -362,9 +384,19 @@ body, html {
     border-radius: 6px;
 }
 
-.team0 { color: #ff6b6b; font-weight: bold; }
-.team1 { color: #4dabf7; font-weight: bold; }
-.vs { color: rgba(255, 255, 255, 0.7); }
+.team0 {
+    color: #ff6b6b;
+    font-weight: bold;
+}
+
+.team1 {
+    color: #4dabf7;
+    font-weight: bold;
+}
+
+.vs {
+    color: rgba(255, 255, 255, 0.7);
+}
 
 #battleLog {
     flex-grow: 1;
@@ -665,20 +697,41 @@ body, html {
 
 /* Анимации */
 @keyframes cardDraw {
-    0% { transform: scale(0.8) perspective(500px) rotateX(10deg); opacity: 0; }
-    100% { transform: scale(1) perspective(500px) rotateX(2deg); opacity: 1; }
+    0% {
+        transform: scale(0.8) perspective(500px) rotateX(10deg);
+        opacity: 0;
+    }
+    100% {
+        transform: scale(1) perspective(500px) rotateX(2deg);
+        opacity: 1;
+    }
 }
 
 @keyframes pulse {
-    0% { box-shadow: 0 0 15px rgba(255, 255, 0, 0.8), inset 0 0 8px rgba(255, 255, 0, 0.5); }
-    50% { box-shadow: 0 0 25px rgba(255, 255, 0, 1), inset 0 0 12px rgba(255, 255, 0, 0.7); }
-    100% { box-shadow: 0 0 15px rgba(255, 255, 0, 0.8), inset 0 0 8px rgba(255, 255, 0, 0.5); }
+    0% {
+        box-shadow: 0 0 15px rgba(255, 255, 0, 0.8), inset 0 0 8px rgba(255, 255, 0, 0.5);
+    }
+    50% {
+        box-shadow: 0 0 25px rgba(255, 255, 0, 1), inset 0 0 12px rgba(255, 255, 0, 0.7);
+    }
+    100% {
+        box-shadow: 0 0 15px rgba(255, 255, 0, 0.8), inset 0 0 8px rgba(255, 255, 0, 0.5);
+    }
 }
 
 @keyframes phaseGlow {
-    0% { color: #ff6b6b; text-shadow: 0 0 8px rgba(255, 107, 107, 0.7); }
-    50% { color: #ff9f43; text-shadow: 0 0 12px rgba(255, 159, 67, 0.9); }
-    100% { color: #ff6b6b; text-shadow: 0 0 8px rgba(255, 107, 107, 0.7); }
+    0% {
+        color: #ff6b6b;
+        text-shadow: 0 0 8px rgba(255, 107, 107, 0.7);
+    }
+    50% {
+        color: #ff9f43;
+        text-shadow: 0 0 12px rgba(255, 159, 67, 0.9);
+    }
+    100% {
+        color: #ff6b6b;
+        text-shadow: 0 0 8px rgba(255, 107, 107, 0.7);
+    }
 }
 
 /* Адаптивность */
@@ -687,25 +740,31 @@ body, html {
         flex-direction: column;
         align-items: center;
     }
+
     #wrestleCards, #rightPanel {
         width: 100%;
         max-width: 300px;
     }
+
     #characterCards {
         width: 90%;
         height: 120px;
     }
+
     #characterCards .card {
         width: 80px;
         height: 100px;
     }
+
     #characterCards .card .image {
         height: 70px;
     }
+
     #characterCards .card .info {
         height: 30px;
         font-size: 6px;
     }
+
     #gameCanvas {
         width: 840px;
         height: 472.5px;
@@ -971,4 +1030,157 @@ body, html {
     padding: 3px;
     background: rgba(255, 255, 255, 0.1);
     border-radius: 3px;
+}
+.team-selection-container {
+    background: linear-gradient(135deg, #2a2a40, #1e1e2f);
+    padding: 30px;
+    border-radius: 16px;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.7);
+    text-align: center;
+    max-width: 900px;
+    width: 100%;
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+.team-selection-container h2 {
+    color: #ffd700;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+    margin-bottom: 25px;
+    font-size: 28px;
+}
+
+.teams-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    justify-items: center;
+    padding: 20px 0;
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.team-card {
+    background: linear-gradient(135deg, #f5e8c7, #d9c9a1);
+    border: 3px solid #b8860b;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    padding: 15px;
+    width: 100%;
+    max-width: 320px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+.team-card:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6), 0 0 15px rgba(255, 215, 0, 0.8);
+}
+
+.team-card.selected {
+    border-color: #ffd700;
+    box-shadow: 0 0 20px rgba(255, 215, 0, 1);
+    animation: pulse 1.5s infinite ease-in-out;
+}
+
+.team-icon {
+    width: 80px;
+    height: 80px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    margin: 0 auto 10px;
+}
+
+.team-card h3 {
+    color: #333;
+    font-size: 18px;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.team-card p {
+    color: #555;
+    font-size: 12px;
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+.characters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.character-preview {
+    width: 80px;
+    height: 100px;
+    background: linear-gradient(135deg, #fff, #e0e0e0);
+    border: 2px solid #b8860b;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: transform 0.2s ease;
+}
+
+.character-preview:hover {
+    transform: scale(1.1);
+}
+
+.character-preview .image {
+    width: 100%;
+    height: 60px;
+    background-size: cover;
+    background-position: center;
+    border-bottom: 1px solid #b8860b;
+}
+
+.character-preview .name {
+    font-size: 10px;
+    color: #333;
+    text-align: center;
+    padding: 5px;
+    background: rgba(255, 255, 255, 0.85);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#confirm-team-btn {
+    background: linear-gradient(135deg, #4caf50, #388e3c);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 25px;
+    margin-top: 20px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    text-transform: uppercase;
+    transition: background 0.2s, transform 0.2s;
+}
+
+#confirm-team-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #45a049, #357a38);
+    transform: scale(1.05);
+}
+
+#confirm-team-btn:disabled {
+    background: linear-gradient(135deg, #666, #555);
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 20px rgba(255, 215, 0, 1); }
+    50% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.5); }
+    100% { box-shadow: 0 0 20px rgba(255, 215, 0, 1); }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }

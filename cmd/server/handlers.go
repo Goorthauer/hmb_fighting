@@ -158,7 +158,10 @@ func (h *Handler) handleCheckClient(w http.ResponseWriter, r *http.Request) {
 	exists := user.ID == req.ClientID && user.ID == claims.ClientID
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]bool{"valid": exists})
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"valid":   exists,
+	})
 	log.Printf("Checked clientID: %s, valid: %v", req.ClientID, exists)
 }
 
@@ -187,7 +190,10 @@ func (h *Handler) handleCreateRoom(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"roomID": game.GameSessionId})
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"roomID":  game.GameSessionId,
+	})
 	log.Printf("Room %s created by %s", game.GameSessionId, claims.ClientID)
 }
 
@@ -343,6 +349,190 @@ func (h *Handler) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *Handler) handleSelectTeam(w http.ResponseWriter, r *http.Request) {
+
+	teams, err := h.db.GetTeamsConfig()
+	if err != nil {
+		http.Error(w, "Teams not found", http.StatusNotFound)
+		return
+	}
+	characters, err := h.db.GetCharacters()
+	if err != nil {
+		http.Error(w, "Char not found", http.StatusNotFound)
+	}
+
+	outChars := make(map[int][]Character)
+	for _, char := range characters {
+		if !char.IsActive {
+			continue
+		}
+		outChars[char.TeamID] = append(outChars[char.TeamID], char)
+	}
+
+	response := struct {
+		AvailableTeams map[int]TeamConfig  `json:"availableTeams"`
+		Characters     map[int][]Character `json:"characters"`
+	}{
+		AvailableTeams: teams,
+		Characters:     outChars,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (h *Handler) handleSetTeam(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		RoomID      string `json:"roomID"`
+		RealTeamID  int    `json:"realTeamID"`
+		AccessToken string `json:"accessToken"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	claims, err := validateToken(req.AccessToken)
+	if err != nil {
+		http.Error(w, "Invalid token", http.StatusUnauthorized)
+		return
+	}
+
+	game, err := h.db.GetRoom(req.RoomID)
+	if err != nil || game == nil {
+		http.Error(w, "Room not found", http.StatusNotFound)
+		return
+	}
+	teamID := -1
+	if game.Players[0] == claims.ClientID {
+		teamID = 0
+		claims.Role = "player"
+	} else if len(game.Players) < 2 && claims.Role == "spectator" {
+		teamID = 1
+		game.Players[1] = claims.ClientID
+		claims.Role = "player"
+	} else if game.Players[1] == claims.ClientID {
+		teamID = 1
+	}
+	for i := range game.Connections {
+		if game.Connections[i].ClientID == claims.ClientID {
+			game.Connections[i].Spectator = false
+		}
+	}
+	if teamID == -1 {
+		http.Error(w, "Invalid team ID", http.StatusBadRequest)
+		return
+	}
+	teams, err := h.db.GetTeamsConfig()
+	if err != nil {
+		http.Error(w, "Teams not found", http.StatusNotFound)
+		return
+	}
+	characters, err := h.db.GetCharacters()
+	if err != nil {
+		http.Error(w, "Char not found", http.StatusNotFound)
+	}
+
+	characterTeam := make([]Character, 0)
+	for _, char := range characters {
+		if !char.IsActive {
+			continue
+		}
+		char.SetAbilities(game.AbilitiesConfig)
+		char.Position = [2]int{-1, -1}
+		// Применяем эффекты Titan Armour при инициализации
+		if char.IsTitanArmour {
+			char.Wrestling += 1
+			char.Stamina += 1
+			char.Initiative += 1
+			char.Defense -= 2
+			char.HP -= 5
+			if char.HP < 1 {
+				char.HP = 1 // Минимальное значение HP
+			}
+			if char.Defense < 0 {
+				char.Defense = 0 // Минимальное значение защиты
+			}
+		}
+		if char.TeamID == req.RealTeamID {
+			char.TeamID = teamID
+			characterTeam = append(characterTeam, char)
+		}
+	}
+
+	game.mutex.Lock()
+	teamConfigList := make(map[int]TeamConfig)
+	teamList := make(map[int]Team)
+	if game.TeamsConfig == nil {
+		game.TeamsConfig = teamConfigList
+	}
+	if game.Teams == nil {
+		game.Teams = teamList
+	}
+	game.TeamsConfig[teamID] = teams[req.RealTeamID]
+	game.Teams[teamID] = Team{characterTeam}
+
+	if len(game.Players) == 2 {
+		for _, team := range game.Teams {
+			for i := range team.Characters {
+				char := &team.Characters[i]
+				if shield, ok := game.ShieldsConfig[char.Shield]; ok {
+					char.Defense += shield.DefenseBonus
+					char.AttackMin += shield.AttackBonus
+					char.AttackMax += shield.AttackBonus
+				}
+				if weapon, ok := game.WeaponsConfig[char.Weapon]; ok {
+					char.AttackMin += weapon.AttackBonus
+					char.AttackMax += weapon.AttackBonus
+				}
+			}
+		}
+		game.Phase = "setup"
+	}
+	game.mutex.Unlock()
+
+	h.db.SetRoom(game)
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Team assigned",
+	})
+}
+
+func (h *Handler) handleCheckTeams(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		RoomID      string `json:"roomID"`
+		AccessToken string `json:"accessToken"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	_, err := validateToken(req.AccessToken)
+	if err != nil {
+		http.Error(w, "Invalid token", http.StatusUnauthorized)
+		return
+	}
+
+	game, err := h.db.GetRoom(req.RoomID)
+	if err != nil || game == nil {
+		http.Error(w, "Room not found", http.StatusNotFound)
+		return
+	}
+	// Логика для проверки, выбрали ли обе команды свои команды
+	allTeamsSelected := game.Phase == "setup"
+
+	response := struct {
+		AllTeamsSelected bool `json:"allTeamsSelected"`
+	}{
+		AllTeamsSelected: allTeamsSelected,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
 func handleSetupPhase(game *Game, client *Client, action Action) {
 	if action.Type == "place" && client.TeamID >= 0 {
 		char := findCharacter(game, action.CharacterID)
@@ -480,6 +670,10 @@ func broadcastGameState(game *Game) {
 	}
 
 	for conn, client := range game.Connections {
+		//log.Printf("client %s is a %s spectator", client.TeamID, client.Spectator)
+		//if client.Spectator && client.TeamID >= 0 {
+		//	client.Spectator = false
+		//}
 		state := GameState{
 			Teams:           teams,
 			CurrentTurn:     game.CurrentTurn,

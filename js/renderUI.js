@@ -73,7 +73,6 @@ export function updatePhaseAndProgress(data) {
 export function updateCharacterCards(data) {
     if (isUpdatingCards) return;
     isUpdatingCards = true;
-
     const characterCards = document.getElementById('characterCards');
     if (!characterCards) {
         isUpdatingCards = false;
@@ -82,7 +81,6 @@ export function updateCharacterCards(data) {
 
     characterCards.innerHTML = '';
     const gameSessionId = data.gameSessionId || 'default_session';
-
     if (currentGameSessionId && currentGameSessionId !== gameSessionId) {
         resetTurnState();
     }
@@ -95,7 +93,7 @@ export function updateCharacterCards(data) {
             });
         });
     }
-
+    console.log(data)
     if (!roundStarted || turnOrder.length === 0) {
         if (loadTurnState(gameSessionId)) {
             console.log('Loaded turn state:', { turnOrder, previousTurn: previousState?.currentTurn });
@@ -159,7 +157,6 @@ function showCharacterModal(char, data) {
     const modalCard = document.getElementById('modalCharacterCard');
     const closeBtn = modal.querySelector('.close');
 
-    const titanArmourText = char.isTitanArmour ? '<span class="titan-armour">Titan Armour 🛠️</span>' : 'No Titan Armour';
     modalCard.innerHTML = `
         <div class="card team${char.team}">
             <div class="image" style="background-image: url('${char.imageURL || 'default-image.png'}');"></div>
@@ -175,7 +172,6 @@ function showCharacterModal(char, data) {
                     <div class="stat"><i class="fas fa-weight"></i> <span class="label">Вес:</span> ${char.weight || 'N/A'}</div>
                     <div class="stat full-width"><i class="fas fa-gavel"></i> <span class="label"></span> ${data.weaponsConfig[char.weapon]?.display_name || 'None'}</div>
                     <div class="stat full-width"><i class="fas fa-shield"></i> <span class="label"></span> ${data.shieldsConfig[char.shield]?.display_name || 'None'}</div>
-                    <div class="stat full-width">${titanArmourText}</div>
                 </div>
                 <div class="hp-container"><div class="hp-diamond"><div class="hp">${char.hp}</div></div></div>
             </div>

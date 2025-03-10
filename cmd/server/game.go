@@ -19,19 +19,9 @@ func initGame(db Database) *Game {
 		log.Fatalf("Failed to get shields config: %v", err)
 	}
 
-	teamsConfig, err := db.GetTeamsConfig()
-	if err != nil {
-		log.Fatalf("Failed to get teams config: %v", err)
-	}
-
 	roleConfig, err := db.GetRoleConfig()
 	if err != nil {
 		log.Fatalf("Failed to get role config: %v", err)
-	}
-
-	characters, err := db.GetCharacters()
-	if err != nil {
-		log.Fatalf("Failed to get characters: %v", err)
 	}
 
 	abilitiesConfig, err := db.GetAbilities()
@@ -39,71 +29,15 @@ func initGame(db Database) *Game {
 		log.Fatalf("Failed to get abilities config: %v", err)
 	}
 
-	firstCharactersTeam := make([]Character, 0)
-	secondCharactersTeam := make([]Character, 0)
-	for _, char := range characters {
-		if !char.IsActive {
-			continue
-		}
-		char.SetAbilities(abilitiesConfig)
-		char.Position = [2]int{-1, -1}
-		// Применяем эффекты Titan Armour при инициализации
-		if char.IsTitanArmour {
-			char.Wrestling += 1
-			char.Stamina += 1
-			char.Initiative += 1
-			char.Defense -= 2
-			char.HP -= 5
-			if char.HP < 1 {
-				char.HP = 1 // Минимальное значение HP
-			}
-			if char.Defense < 0 {
-				char.Defense = 0 // Минимальное значение защиты
-			}
-		}
-		if char.TeamID == 11 {
-			char.TeamID = 0
-			firstCharactersTeam = append(firstCharactersTeam, char)
-		} else if char.TeamID == 6 {
-			char.TeamID = 1
-			secondCharactersTeam = append(secondCharactersTeam, char)
-		}
-	}
-
-	var (
-		teamConfigTwo TeamConfig
-		teamConfigOne TeamConfig
-	)
-	for _, v := range teamsConfig {
-		if v.ID == 11 {
-			v.ID = 0
-			teamConfigOne = v
-		} else if v.ID == 6 {
-			v.ID = 1
-			teamConfigTwo = v
-		}
-	}
-
-	teams := map[int]Team{
-		0: {Characters: firstCharactersTeam},
-		1: {Characters: secondCharactersTeam},
-	}
-	teamConfigOnlyTwo := map[int]TeamConfig{
-		0: teamConfigOne,
-		1: teamConfigTwo,
-	}
-
 	game := &Game{
 		Connections:     make(map[*websocket.Conn]*Client),
 		GameSessionId:   uuid.New().String(),
 		WeaponsConfig:   weaponsConfig,
 		ShieldsConfig:   shieldsConfig,
-		TeamsConfig:     teamConfigOnlyTwo,
-		Teams:           teams,
 		AbilitiesConfig: abilitiesConfig,
 		RoleConfig:      roleConfig,
 		CurrentTurn:     -1,
-		Phase:           "setup",
+		Phase:           "pick_team",
 		Players:         make(map[int]string),
 		Board:           [16][9]int{},
 	}
@@ -111,21 +45,6 @@ func initGame(db Database) *Game {
 	for i := range game.Board {
 		for j := range game.Board[i] {
 			game.Board[i][j] = -1
-		}
-	}
-
-	for _, team := range game.Teams {
-		for i := range team.Characters {
-			char := &team.Characters[i]
-			if shield, ok := game.ShieldsConfig[char.Shield]; ok {
-				char.Defense += shield.DefenseBonus
-				char.AttackMin += shield.AttackBonus
-				char.AttackMax += shield.AttackBonus
-			}
-			if weapon, ok := game.WeaponsConfig[char.Weapon]; ok {
-				char.AttackMin += weapon.AttackBonus
-				char.AttackMax += weapon.AttackBonus
-			}
 		}
 	}
 
@@ -256,13 +175,13 @@ func applyWrestlingMove(game *Game, attacker, target *Character, moveName string
 
 	// Учитываем окружающих врагов
 	surroundingEnemies := countSurroundingEnemies(game, target)
-	successBoost := surroundingEnemies * 5
+	boostFromSurrounding := surroundingEnemies * 5
 
 	// Добавляем бонусы от оружия и щита
-	successChance += mod + successBoost + weapon.GrappleBonus + shield.GrappleBonus
-	partialSuccessChance += mod + successBoost + weapon.GrappleBonus + shield.GrappleBonus
-	failureChance -= mod / 2
-	totalFailureChance -= mod / 2
+	successChance += mod + boostFromSurrounding + weapon.GrappleBonus + shield.GrappleBonus
+	partialSuccessChance += mod + boostFromSurrounding + weapon.GrappleBonus + shield.GrappleBonus
+	failureChance -= (mod + boostFromSurrounding) / 2
+	totalFailureChance -= (mod + boostFromSurrounding) / 2
 
 	// Ограничиваем минимальные и максимальные значения
 	if successChance < 5 {

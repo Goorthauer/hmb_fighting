@@ -130,12 +130,15 @@ function drawCharacter(char, x, y, isCurrentTurn = false) {
         ctx.drawImage(charImage, x * cellWidth + offsetX, y * cellHeight + offsetY, iconSize, iconSize);
     }
 
-    ctx.fillStyle = char.team === 0 ? 'rgba(128, 0, 128, 0.8)' : 'rgba(255, 215, 0, 0.8)';
+    ctx.fillStyle = char.team === 0 ? 'rgba(128, 0, 128, 0.8)' : 'rgba(62,7,7,0.8)';
     ctx.fillRect(x * cellWidth, y * cellHeight + cellHeight - 15, cellWidth, 15);
     ctx.fillStyle = '#fff';
-    ctx.font = '12px Arial';
+    ctx.font = '10px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText(char.name, x * cellWidth + cellWidth / 2, y * cellHeight + cellHeight - 7.5);
+
+    // Берем только первое слово из имени персонажа
+    const firstName = char.name.split(' ')[0];
+    ctx.fillText(firstName, x * cellWidth + cellWidth / 2, y * cellHeight + cellHeight - 7.5);
 
     if (isCurrentTurn) {
         ctx.strokeStyle = 'yellow';
@@ -144,7 +147,6 @@ function drawCharacter(char, x, y, isCurrentTurn = false) {
         ctx.lineWidth = 1;
     }
 }
-
 // Отрисовка всех персонажей на поле
 function drawCharacters(data) {
     for (let x = 0; x < 16; x++) {
