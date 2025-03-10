@@ -39,17 +39,28 @@ type Shield struct {
 	AttackBonus  int    `json:"attackBonus"`  // Бонус к атаке
 	GrappleBonus int    `json:"grappleBonus"` // Бонус к успешным состояниям борьбы
 }
+
 type TeamConfig struct {
-	IconURL string `json:"iconURL"`
+	IconURL     string `json:"iconURL"`
+	Name        string `json:"name"`
+	ID          int    `json:"ID"`
+	Description string `json:"description"`
+}
+
+type Role struct {
+	Name string `json:"name"`
+	ID   string `json:"ID"`
 }
 
 type Character struct {
 	//base
 	ID             int    `json:"id"`
 	Name           string `json:"name"`
-	Team           int    `json:"team"`
+	TeamID         int    `json:"team"`
+	RoleID         int    `json:"role"`
 	CountOfAbility int    `json:"-"`
 	ImageURL       string `json:"imageURL"`
+	IsActive       bool   `json:"isActive"`
 	//заполняются в бою или перед инициализацией
 	Abilities []string `json:"abilities"`
 	Effects   []Effect `json:"effects"`
@@ -163,10 +174,10 @@ type Game struct {
 	WeaponsConfig   map[string]Weapon
 	ShieldsConfig   map[string]Shield
 	AbilitiesConfig map[string]Ability
+	RoleConfig      map[string]Role
 	TeamsConfig     map[int]TeamConfig // Теперь map
 	mutex           sync.Mutex
-	SetupPhase      bool // Фаза расстановки
-	Winner          int  // ID команды-победителя, -1 если нет
+	Winner          int // ID команды-победителя, -1 если нет
 }
 
 // Node для алгоритма A*

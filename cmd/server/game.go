@@ -24,6 +24,11 @@ func initGame(db Database) *Game {
 		log.Fatalf("Failed to get teams config: %v", err)
 	}
 
+	roleConfig, err := db.GetRoleConfig()
+	if err != nil {
+		log.Fatalf("Failed to get role config: %v", err)
+	}
+
 	characters, err := db.GetCharacters()
 	if err != nil {
 		log.Fatalf("Failed to get characters: %v", err)
@@ -37,6 +42,9 @@ func initGame(db Database) *Game {
 	firstCharactersTeam := make([]Character, 0)
 	secondCharactersTeam := make([]Character, 0)
 	for _, char := range characters {
+		if !char.IsActive {
+			continue
+		}
 		char.SetAbilities(abilitiesConfig)
 		char.Position = [2]int{-1, -1}
 		// Применяем эффекты Titan Armour при инициализации
@@ -53,10 +61,26 @@ func initGame(db Database) *Game {
 				char.Defense = 0 // Минимальное значение защиты
 			}
 		}
-		if char.Team == 0 {
+		if char.TeamID == 11 {
+			char.TeamID = 0
 			firstCharactersTeam = append(firstCharactersTeam, char)
-		} else if char.Team == 1 {
+		} else if char.TeamID == 6 {
+			char.TeamID = 1
 			secondCharactersTeam = append(secondCharactersTeam, char)
+		}
+	}
+
+	var (
+		teamConfigTwo TeamConfig
+		teamConfigOne TeamConfig
+	)
+	for _, v := range teamsConfig {
+		if v.ID == 11 {
+			v.ID = 0
+			teamConfigOne = v
+		} else if v.ID == 6 {
+			v.ID = 1
+			teamConfigTwo = v
 		}
 	}
 
@@ -64,15 +88,20 @@ func initGame(db Database) *Game {
 		0: {Characters: firstCharactersTeam},
 		1: {Characters: secondCharactersTeam},
 	}
+	teamConfigOnlyTwo := map[int]TeamConfig{
+		0: teamConfigOne,
+		1: teamConfigTwo,
+	}
 
 	game := &Game{
 		Connections:     make(map[*websocket.Conn]*Client),
 		GameSessionId:   uuid.New().String(),
 		WeaponsConfig:   weaponsConfig,
 		ShieldsConfig:   shieldsConfig,
-		TeamsConfig:     teamsConfig,
+		TeamsConfig:     teamConfigOnlyTwo,
 		Teams:           teams,
 		AbilitiesConfig: abilitiesConfig,
+		RoleConfig:      roleConfig,
 		CurrentTurn:     -1,
 		Phase:           "setup",
 		Players:         make(map[int]string),
@@ -124,7 +153,7 @@ func countSurroundingEnemies(game *Game, char *Character) int {
 			x, y := char.Position[0]+dx, char.Position[1]+dy
 			if x >= 0 && x < 16 && y >= 0 && y < 9 && game.Board[x][y] != -1 {
 				target := findCharacter(game, game.Board[x][y])
-				if target != nil && target.Team != char.Team && target.HP > 0 {
+				if target != nil && target.TeamID != char.TeamID && target.HP > 0 {
 					count++
 				}
 			}
@@ -328,19 +357,26 @@ func nextTurn(game *Game) {
 			}
 		}
 	}
-	aliveTeams := 0
-	winner := -1
-	for teamID, team := range game.Teams {
+	aliveTeamsOne := 0
+	aliveTeamsTwo := 0
+	for _, team := range game.Teams {
 		for _, char := range team.Characters {
 			if char.HP > 0 {
-				aliveTeams++
-				winner = teamID
+				if char.TeamID == 0 {
+					aliveTeamsOne++
+				} else if char.TeamID == 1 {
+					aliveTeamsTwo++
+				}
 				break
 			}
 		}
 	}
-	if aliveTeams <= 1 {
-		game.Winner = winner
+	if aliveTeamsOne < 1 {
+		game.Winner = 1
+		game.Phase = "finished"
+	}
+	if aliveTeamsTwo < 1 {
+		game.Winner = 0
 		game.Phase = "finished"
 	}
 }

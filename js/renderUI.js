@@ -138,7 +138,6 @@ function renderCards(container, chars, data, allChars) {
         if (char.hp <= 0) card.classList.add('dead');
         if (data.phase === 'setup' && char.position[0] !== -1) card.classList.add('placed');
 
-        // Добавим индикатор Titan Armour на карточке
         const titanIcon = char.isTitanArmour ? '<span class="titan-icon">🛠️</span>' : '';
         card.innerHTML = `
             <div class="image" style="background-image: url('${char.imageURL || 'default-image.png'}');"></div>
@@ -160,8 +159,7 @@ function showCharacterModal(char, data) {
     const modalCard = document.getElementById('modalCharacterCard');
     const closeBtn = modal.querySelector('.close');
 
-    // Добавляем новые поля в стильном виде
-    const titanArmourText = char.IsTitanArmour ? 'Титан ️' : 'Сталь ️';
+    const titanArmourText = char.isTitanArmour ? '<span class="titan-armour">Titan Armour 🛠️</span>' : 'No Titan Armour';
     modalCard.innerHTML = `
         <div class="card team${char.team}">
             <div class="image" style="background-image: url('${char.imageURL || 'default-image.png'}');"></div>
@@ -177,7 +175,7 @@ function showCharacterModal(char, data) {
                     <div class="stat"><i class="fas fa-weight"></i> <span class="label">Вес:</span> ${char.weight || 'N/A'}</div>
                     <div class="stat full-width"><i class="fas fa-gavel"></i> <span class="label"></span> ${data.weaponsConfig[char.weapon]?.display_name || 'None'}</div>
                     <div class="stat full-width"><i class="fas fa-shield"></i> <span class="label"></span> ${data.shieldsConfig[char.shield]?.display_name || 'None'}</div>
-                    <div class="stat full-width"><i class="fas fa-vest"></i>${char.IsTitanArmour ? 'Титановый' : 'Стальной'} комплект</div>
+                    <div class="stat full-width">${titanArmourText}</div>
                 </div>
                 <div class="hp-container"><div class="hp-diamond"><div class="hp">${char.hp}</div></div></div>
             </div>
@@ -295,7 +293,7 @@ export function updateBattleLog(data) {
                 addLogEntry(`${curr.name} получил ${prev.hp - curr.hp} урона (Оставшееся здоровье: ${curr.hp})`);
             }
             if (prev.hp > 0 && curr.hp <= 0) {
-                addLogEntry(`${curr.name} был побежден`);
+                addLogEntry(`${curr.name} был побежден${prev.position[0] === -1 && prev.position[1] === -1 ? ' (не был размещён)' : ''}`);
             }
         }
     }

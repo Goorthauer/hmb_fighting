@@ -2,6 +2,7 @@ import { gameState, draggingCharacter, selectedAbility } from './state.js';
 import { cellWidth, cellHeight } from './constants.js';
 import { findCharacter } from './utils.js';
 import { sendMessage } from './websocket.js';
+import { addLogEntry } from './utils.js';
 
 // Узел для алгоритма A*
 class Node {
@@ -120,7 +121,7 @@ export function canMove(gridX, gridY) {
 
 // Проверка возможности атаки или использования способности
 export function canAttackOrUseAbility(gridX, gridY, myTeam) {
-    if (gameState.phase !== 'action' || gameState.board[gridX][gridY] === -1) return false;
+    if (gameState.board[gridX][gridY] === -1) return false;
     const target = findCharacter(gameState.teams, gameState.board[gridX][gridY]);
     return target && target.team !== myTeam;
 }
@@ -139,4 +140,19 @@ export function isWithinAttackRange(attacker, targetX, targetY, weaponsConfig, a
     const weapon = weaponsConfig[attacker.weapon];
     const weaponRange = weapon ? weapon.range : 1;
     return dx <= weaponRange && dy <= weaponRange;
+}
+
+// Убийство непоставленных персонажей после фазы setup
+export function killUnplacedCharacters(myTeam) {
+    if (!gameState || !gameState.teams || gameState.phase !== 'setup') return;
+
+    const team = gameState.teams[myTeam];
+    if (!team || !team.characters) return;
+
+    team.characters.forEach(char => {
+        if (char.position[0] === -1 && char.position[1] === -1) {
+            char.hp = 0; // Устанавливаем здоровье в 0
+            addLogEntry(`${char.name} не был размещён, поэтому убран из пула`);
+        }
+    });
 }

@@ -219,7 +219,6 @@ func (h *Handler) handleRestart(w http.ResponseWriter, r *http.Request) {
 	}
 
 	game.mutex.Lock()
-	game.SetupPhase = true
 	game.Phase = "setup"
 	game.Winner = -1
 	game.CurrentTurn = -1
@@ -233,12 +232,6 @@ func (h *Handler) handleRestart(w http.ResponseWriter, r *http.Request) {
 			// Сбрасываем HP и позицию, но сохраняем эффекты Titan Armour
 			char := &game.Teams[teamID].Characters[i]
 			char.HP = 100
-			if char.IsTitanArmour {
-				char.HP -= 5
-				if char.HP < 1 {
-					char.HP = 1
-				}
-			}
 			char.Position = [2]int{-1, -1}
 		}
 	}
@@ -353,8 +346,8 @@ func (h *Handler) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 func handleSetupPhase(game *Game, client *Client, action Action) {
 	if action.Type == "place" && client.TeamID >= 0 {
 		char := findCharacter(game, action.CharacterID)
-		if char != nil && char.Team == client.TeamID && action.Position[0] >= 0 && action.Position[0] < 16 && action.Position[1] >= 0 && action.Position[1] < 9 {
-			if game.Board[action.Position[0]][action.Position[1]] == -1 && ((char.Team == 0 && action.Position[0] < 8) || (char.Team == 1 && action.Position[0] >= 8)) {
+		if char != nil && char.TeamID == client.TeamID && action.Position[0] >= 0 && action.Position[0] < 16 && action.Position[1] >= 0 && action.Position[1] < 9 {
+			if game.Board[action.Position[0]][action.Position[1]] == -1 && ((char.TeamID == 0 && action.Position[0] < 8) || (char.TeamID == 1 && action.Position[0] >= 8)) {
 				char.Position = action.Position
 				game.Board[action.Position[0]][action.Position[1]] = char.ID
 				log.Printf("%s placed %s at (%d, %d)", client.ClientID, char.Name, action.Position[0], action.Position[1])
@@ -365,8 +358,12 @@ func handleSetupPhase(game *Game, client *Client, action Action) {
 			allPlaced := true
 			for _, team := range game.Teams {
 				placed := 0
-				for _, char := range team.Characters {
-					if char.Position[0] != -1 {
+				for i := range team.Characters {
+					char := &team.Characters[i]
+					if char.Position[0] == -1 && char.Position[1] == -1 {
+						char.HP = 0 // Убиваем непоставленных
+						log.Printf("%s was killed due to not being placed", char.Name)
+					} else if char.HP > 0 {
 						placed++
 					}
 				}
@@ -376,9 +373,18 @@ func handleSetupPhase(game *Game, client *Client, action Action) {
 				}
 			}
 			if allPlaced {
-				game.SetupPhase = false
 				game.Phase = "move"
-				game.CurrentTurn = game.Teams[0].Characters[0].ID
+				var maxInitiativeCharacterID int
+				maxInitiative := -1
+				for _, team := range game.Teams {
+					for _, char := range team.Characters {
+						if char.Initiative > maxInitiative && char.HP > 0 {
+							maxInitiative = char.Initiative
+							maxInitiativeCharacterID = char.ID
+						}
+					}
+				}
+				game.CurrentTurn = maxInitiativeCharacterID
 				log.Printf("Game %s started by %s", game.GameSessionId, client.ClientID)
 			}
 		}
@@ -387,7 +393,7 @@ func handleSetupPhase(game *Game, client *Client, action Action) {
 
 func handleGamePhase(game *Game, client *Client, action Action, claims *Claims) {
 	currentChar := findCharacter(game, game.CurrentTurn)
-	if currentChar == nil || currentChar.Team != client.TeamID {
+	if currentChar == nil || currentChar.TeamID != client.TeamID {
 		log.Printf("Not your turn or invalid character: %s", claims.ClientID)
 		return
 	}
@@ -424,7 +430,7 @@ func handleMoveAction(game *Game, currentChar *Character, action Action) {
 
 func handleAttackAction(game *Game, currentChar *Character, action Action) {
 	target := findCharacter(game, action.TargetID)
-	if (game.Phase == "move" || game.Phase == "action") && target != nil && target.Team != currentChar.Team {
+	if (game.Phase == "move" || game.Phase == "action") && target != nil && target.TeamID != currentChar.TeamID {
 		weaponRange := game.WeaponsConfig[currentChar.Weapon].Range
 		if distanceToAttack(currentChar.Position, target.Position, game.WeaponsConfig[currentChar.Weapon]) <= weaponRange {
 			damage := calculateDamage(currentChar, target, game)
@@ -440,7 +446,7 @@ func handleAttackAction(game *Game, currentChar *Character, action Action) {
 
 func handleAbilityAction(game *Game, currentChar *Character, action Action) {
 	target := findCharacter(game, action.TargetID)
-	if game.Phase == "action" && target != nil && target.Team != currentChar.Team {
+	if game.Phase == "action" && target != nil && target.TeamID != currentChar.TeamID {
 		ability, exists := game.AbilitiesConfig[strings.ToLower(action.Ability)]
 		if exists && distanceToAbility(currentChar.Position, target.Position) <= ability.Range {
 			for i, abilityID := range currentChar.Abilities {

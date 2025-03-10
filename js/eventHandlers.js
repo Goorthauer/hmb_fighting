@@ -10,7 +10,7 @@ import {
 } from './state.js';
 import { sendMessage } from './websocket.js';
 import { animateMove, drawBoard } from './renderCanvas.js';
-import { findPath, getGridPosition, canMove, canAttackOrUseAbility, isWithinAttackRange } from './gameLogic.js';
+import { findPath, getGridPosition, canMove, canAttackOrUseAbility, isWithinAttackRange, killUnplacedCharacters } from './gameLogic.js';
 import { findCharacter } from './utils.js';
 import { canvas } from './constants.js';
 
@@ -234,9 +234,13 @@ function handleStartGame(myTeam) {
     const clientID = localStorage.getItem('clientID');
     if (gameState.phase === 'setup' && gameState.teams[myTeam].characters.filter(c => c.position[0] !== -1).length >= 5) {
         console.log('Starting game');
+        // Убиваем непоставленных персонажей перед началом игры
+        killUnplacedCharacters(myTeam);
         sendMessage(JSON.stringify({
             type: 'start',
             clientID: clientID
         }));
+    } else {
+        console.warn('Cannot start game: not enough characters placed (minimum 5 required)');
     }
 }
