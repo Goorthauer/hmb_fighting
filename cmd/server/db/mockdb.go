@@ -26,7 +26,6 @@ func (m *MockDatabase) GetShields() (map[string]types.Shield, error) {
 		"buckler": {Name: "buckler", DisplayName: "Баклер", DefenseBonus: 1, ImageURL: "./static/shields/default.png", AttackBonus: 1, GrappleBonus: 1},
 		"shield":  {Name: "shield", DisplayName: "Тарч", DefenseBonus: 2, ImageURL: "./static/shields/default.png", AttackBonus: 1, GrappleBonus: 0},
 		"tower":   {Name: "tower", DisplayName: "Ростовой щит", DefenseBonus: 3, ImageURL: "./static/shields/default.png", AttackBonus: 0, GrappleBonus: -1},
-		"":        {Name: "none", DefenseBonus: 0, ImageURL: "", AttackBonus: 0, GrappleBonus: 0},
 	}, nil
 }
 
@@ -139,8 +138,6 @@ func (m *MockDatabase) GetAbilities() (map[string]types.Ability, error) {
 	}
 	return abilities, nil
 }
-
-// GetCharacters возвращает список персонажей
 
 func (m *MockDatabase) GetCharacters() ([]types.Character, error) {
 	return []types.Character{
@@ -368,18 +365,18 @@ func (m *MockDatabase) GetTeamsConfig() (map[int]types.TeamConfig, error) {
 		11: {ID: 11, Name: "Партизан", IconURL: "./static/teams/partizan.png", Description: "Первая команда партизан, мастера скрытности."},
 		12: {ID: 12, Name: "Злой дух Ямбуя", IconURL: "./static/teams/yambuya_spirit.png", Description: "Мистические воины севера."},
 		16: {ID: 16, Name: "Медвежья пядь", IconURL: "./static/teams/bear_span.png", Description: "Сильные, как медведи, бойцы."},
-		//
-		//4:  {ID: 4, Name: "Школа ИСБ Байард", IconURL: "./static/teams/isb_bayard.png", Description: "Ученики школы боевых искусств Байард."},
-		//5:  {ID: 5, Name: "НРБ", IconURL: "./static/teams/nrb.png", Description: "Непреклонные рыцари битвы."},
-		//8:  {ID: 8, Name: "Vivus Ferro", IconURL: "./static/teams/vivus_ferro.png", Description: "Живые клинки, мастера оружия."},
-		//9:  {ID: 9, Name: "Молодые львы", IconURL: "./static/teams/young_lions.png", Description: "Юные и амбициозные бойцы."},
-		//10: {ID: 10, Name: "Ганза", IconURL: "./static/teams/hansa.png", Description: "Союз торговцев и воинов."},
-		//13: {ID: 13, Name: "Мальтийский крест", IconURL: "./static/teams/maltese_cross.png", Description: "Рыцари ордена, верные клятве."},
-		//14: {ID: 14, Name: "Урфин Джус", IconURL: "./static/teams/urfin_jus.png", Description: "Команда загадочных мастеров."},
-		//15: {ID: 15, Name: "Высшая Школа ИСБ Санкт-Петербург", IconURL: "./static/teams/isb_spb.png", Description: "Элита школы боевых искусств СПб."},
-		//17: {ID: 17, Name: "Байард", IconURL: "./static/teams/bayard.png", Description: "Рыцари чести и доблести."},
-		//18: {ID: 18, Name: "RaubRitter", IconURL: "./static/teams/raubritter.png", Description: "Разбойные рыцари, мастера боя."},
-		//19: {ID: 19, Name: "Межевой рыцарь", IconURL: "./static/teams/border_knight.png", Description: "Стражи границ и традиций."},
+
+		4:  {ID: 4, Name: "Школа ИСБ Байард", IconURL: "./static/teams/isb_bayard.png", Description: "Ученики школы боевых искусств Байард."},
+		5:  {ID: 5, Name: "НРБ", IconURL: "./static/teams/nrb.png", Description: "Непреклонные рыцари битвы."},
+		8:  {ID: 8, Name: "Vivus Ferro", IconURL: "./static/teams/vivus_ferro.png", Description: "Живые клинки, мастера оружия."},
+		9:  {ID: 9, Name: "Молодые львы", IconURL: "./static/teams/young_lions.png", Description: "Юные и амбициозные бойцы."},
+		10: {ID: 10, Name: "Ганза", IconURL: "./static/teams/hansa.png", Description: "Союз торговцев и воинов."},
+		13: {ID: 13, Name: "Мальтийский крест", IconURL: "./static/teams/maltese_cross.png", Description: "Рыцари ордена, верные клятве."},
+		14: {ID: 14, Name: "Урфин Джус", IconURL: "./static/teams/urfin_jus.png", Description: "Команда загадочных мастеров."},
+		15: {ID: 15, Name: "Высшая Школа ИСБ Санкт-Петербург", IconURL: "./static/teams/isb_spb.png", Description: "Элита школы боевых искусств СПб."},
+		17: {ID: 17, Name: "Байард", IconURL: "./static/teams/bayard.png", Description: "Рыцари чести и доблести."},
+		18: {ID: 18, Name: "RaubRitter", IconURL: "./static/teams/raubritter.png", Description: "Разбойные рыцари, мастера боя."},
+		19: {ID: 19, Name: "Межевой рыцарь", IconURL: "./static/teams/border_knight.png", Description: "Стражи границ и традиций."},
 	}, nil
 }
 
