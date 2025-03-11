@@ -104,7 +104,7 @@ type GameState struct {
 	AbilitiesConfig map[string]Ability `json:"abilitiesConfig"`
 	ShieldsConfig   map[string]Shield  `json:"shieldsConfig"`
 	TeamsConfig     [2]TeamConfig      `json:"teamsConfig"`
-	Battlelog       []string           `json:"battlelog"`
+	Battlelog       []Battlelog        `json:"battlelog"`
 }
 
 type Team struct {
@@ -143,8 +143,13 @@ type Game struct {
 	TeamsConfig     map[int]TeamConfig // Теперь map
 	Mutex           sync.Mutex
 	InitialOrder    []int
-	Battlelog       []string
+	Battlelog       []Battlelog
 	Winner          int // ID команды-победителя, -1 если нет
+}
+
+type Battlelog struct {
+	Time   string
+	Action string
 }
 
 // Node для алгоритма A*

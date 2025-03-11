@@ -272,7 +272,11 @@ func (u *Usecase) SetTeam(roomID string, realTeamID int, accessToken string) err
 	if err != nil || game == nil {
 		return fmt.Errorf("Room not found")
 	}
-
+	for _, v := range game.TeamsConfig {
+		if realTeamID == v.ID {
+			return fmt.Errorf("Team exists")
+		}
+	}
 	teamID := -1
 	if game.Players[0] == claims.ClientID {
 		teamID = 0
@@ -521,10 +525,10 @@ func (u *Usecase) handleMoveAction(game *types.Game, currentChar *types.Characte
 				for _, oa := range opportunityAttacks {
 					attacker := game.FindCharacter(oa.AttackerID)
 					if oa.Type == "trip" {
-						game.Battlelog = append(game.Battlelog, fmt.Sprintf("%s проводит подсечку и %s безвольно падает!", attacker.Name, currentChar.Name))
+						game.SetBattleLog(fmt.Sprintf("%s проводит подсечку и %s безвольно падает!", attacker.Name, currentChar.Name))
 						totalDamage += oa.Damage
 					} else if oa.Type == "attack" {
-						game.Battlelog = append(game.Battlelog, fmt.Sprintf("%s атакует вслед %s на  %d урона!", attacker.Name, currentChar.Name, oa.Damage))
+						game.SetBattleLog(fmt.Sprintf("%s атакует вслед %s на  %d урона!", attacker.Name, currentChar.Name, oa.Damage))
 						totalDamage += oa.Damage
 					}
 					currentChar.HP -= oa.Damage
@@ -539,13 +543,13 @@ func (u *Usecase) handleMoveAction(game *types.Game, currentChar *types.Characte
 					currentChar.Position = action.Position
 					game.Board[action.Position[0]][action.Position[1]] = currentChar.ID
 					game.Phase = "action"
-					game.Battlelog = append(game.Battlelog, fmt.Sprintf("%s ходит на (%d, %d)", currentChar.Name, action.Position[0], action.Position[1]))
+					game.SetBattleLog(fmt.Sprintf("%s ходит на (%d, %d)", currentChar.Name, action.Position[0], action.Position[1]))
 				} else {
-					game.Battlelog = append(game.Battlelog, fmt.Sprintf("%s был накаутирован во время хода (%d, %d)", currentChar.Name, action.Position[0], action.Position[1]))
+					game.SetBattleLog(fmt.Sprintf("%s был накаутирован во время хода (%d, %d)", currentChar.Name, action.Position[0], action.Position[1]))
 					game.NextTurn()
 				}
 			} else {
-				game.Battlelog = append(game.Battlelog, fmt.Sprintf("%s пытался пройти в (%d, %d), но путь заблокирован", currentChar.Name, action.Position[0], action.Position[1]))
+				game.SetBattleLog(fmt.Sprintf("%s пытался пройти в (%d, %d), но путь заблокирован", currentChar.Name, action.Position[0], action.Position[1]))
 			}
 		}
 	}
@@ -560,9 +564,13 @@ func (u *Usecase) handleAttackAction(game *types.Game, currentChar *types.Charac
 			target.HP -= damage
 			if target.HP <= 0 {
 				game.Board[target.Position[0]][target.Position[1]] = -1
-				game.Battlelog = append(game.Battlelog, fmt.Sprintf("%s атаковал %s на %d урона и поверг его!", currentChar.Name, target.Name, damage))
+				game.SetBattleLog(
+					fmt.Sprintf("%s атаковал %s на %d урона и поверг его!",
+						currentChar.Name,
+						target.Name, damage))
 			} else {
-				game.Battlelog = append(game.Battlelog, fmt.Sprintf("%s атаковал %s на  %d урона (Осталось здоровья: %d)", currentChar.Name, target.Name, damage, target.HP))
+				game.SetBattleLog(
+					fmt.Sprintf("%s атаковал %s на  %d урона (Осталось здоровья: %d)", currentChar.Name, target.Name, damage, target.HP))
 			}
 			game.NextTurn()
 		}

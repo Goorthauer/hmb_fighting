@@ -41,7 +41,7 @@ func InitGame(db db.Database) *types.Game {
 		Phase:           "pick_team",
 		Players:         make(map[int]string),
 		Board:           [16][9]int{},
-		Battlelog:       []string{},
+		Battlelog:       []types.Battlelog{},
 	}
 
 	for i := range game.Board {

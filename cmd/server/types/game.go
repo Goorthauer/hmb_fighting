@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"time"
 )
 
 func (g *Game) FindCharacter(id int) *Character {
@@ -346,26 +347,36 @@ func (g *Game) ApplyWrestlingMove(attacker, target *Character, moveName string) 
 	switch {
 	case r < successChance:
 		target.HP = 0
-		log.Printf("%s successfully used %s on %s, knocking them out!", attacker.Name, moveName, target.Name)
+		g.SetBattleLog(
+			fmt.Sprintf("%s успешно применил %s к %s и поверг его!",
+				attacker.Name, moveName, target.Name))
 		g.Board[target.Position[0]][target.Position[1]] = -1
 	case r < successChance+partialSuccessChance:
 		damage := g.CalculateDamageAfterWrestle(attacker, target)
 		target.HP -= damage
-		log.Printf("%s partially succeeded with %s on %s, dealing %d damage", attacker.Name, moveName, target.Name, damage)
+		g.SetBattleLog(
+			fmt.Sprintf("%s применил %s  к %s и нанес %d урона!",
+				attacker.Name, moveName, target.Name, damage))
 		if target.HP <= 0 {
 			g.Board[target.Position[0]][target.Position[1]] = -1
 		}
 	case r < successChance+partialSuccessChance+nothingChance:
-		log.Printf("%s failed to use %s on %s - the move didn't connect!", attacker.Name, moveName, target.Name)
+		g.SetBattleLog(
+			fmt.Sprintf("%s попытался сделать %s на %s и не получилось, видимо плохо подготовил прием!",
+				attacker.Name, moveName, target.Name))
 	case r < successChance+partialSuccessChance+nothingChance+failureChance:
 		attacker.HP = 0
 		target.HP = 0
-		log.Printf("%s failed %s - both %s and %s are knocked out!", attacker.Name, moveName, attacker.Name, target.Name)
+		g.SetBattleLog(
+			fmt.Sprintf("%s попытался сделать %s и, %s уже летя вниз утянул его с собой",
+				attacker.Name, moveName, target.Name))
 		g.Board[attacker.Position[0]][attacker.Position[1]] = -1
 		g.Board[target.Position[0]][target.Position[1]] = -1
 	default:
 		attacker.HP = 0
-		log.Printf("%s catastrophically failed %s - %s is knocked out!", attacker.Name, moveName, attacker.Name)
+		g.SetBattleLog(
+			fmt.Sprintf("%s попытался сделать %s на %s и, запутавшись в ногах, упал как мешок",
+				attacker.Name, moveName, target.Name))
 		g.Board[attacker.Position[0]][attacker.Position[1]] = -1
 	}
 }
@@ -446,6 +457,14 @@ func (g *Game) NextTurn() {
 			}
 		}
 	}
+}
+
+func (g *Game) SetBattleLog(action string) {
+	bl := Battlelog{
+		Time:   time.Now().Format(time.TimeOnly),
+		Action: action,
+	}
+	g.Battlelog = append(g.Battlelog, bl)
 }
 
 func sortCharactersByInitiative(chars []Character) {
