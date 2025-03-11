@@ -276,7 +276,7 @@ func (u *Usecase) processAction(game *types.Game, client *types.Client, action t
 }
 
 func (u *Usecase) SelectTeam() (*dtos.SelectTeamResp, error) {
-	teams, err := u.db.GetTeamsConfig()
+	teams, err := u.db.GetTeams()
 	if err != nil {
 		return nil, fmt.Errorf("Teams not found: %v", err)
 	}
@@ -329,7 +329,7 @@ func (u *Usecase) SetTeam(roomID string, realTeamID int, accessToken string) err
 		return fmt.Errorf("Invalid team ID")
 	}
 
-	teams, err := u.db.GetTeamsConfig()
+	teams, err := u.db.GetTeams()
 	if err != nil {
 		return fmt.Errorf("Teams not found: %v", err)
 	}

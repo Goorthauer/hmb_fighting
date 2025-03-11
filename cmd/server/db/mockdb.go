@@ -355,7 +355,7 @@ func (m *MockDatabase) GetRoleConfig() (map[string]types.Role, error) {
 	}, nil
 }
 
-func (m *MockDatabase) GetTeamsConfig() (map[int]types.TeamConfig, error) {
+func (m *MockDatabase) GetTeams() (map[int]types.TeamConfig, error) {
 	return map[int]types.TeamConfig{
 		1:  {ID: 1, Name: "Партизан Два", IconURL: "./static/teams/partizan_dva.png", Description: "Вторая команда партизан, стойкие и выносливые бойцы."},
 		2:  {ID: 2, Name: "Юг", IconURL: "./static/teams/south.png", Description: "Команда южных земель, известная своей тактикой."},

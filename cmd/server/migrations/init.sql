@@ -35,7 +35,7 @@ CREATE TABLE shields (
                          grapple_bonus INT NOT NULL
 );
 
-CREATE TABLE teams_config (
+CREATE TABLE teams (
                               id INT PRIMARY KEY,
                               name VARCHAR(100) NOT NULL,
                               icon_url VARCHAR(255),
@@ -69,7 +69,7 @@ CREATE TABLE characters (
                             defense INT NOT NULL,
                             attack_min INT NOT NULL,
                             attack_max INT NOT NULL,
-                            FOREIGN KEY (team_id) REFERENCES teams_config(id),
+                            FOREIGN KEY (team_id) REFERENCES teams(id),
                             FOREIGN KEY (role_id) REFERENCES roles(id),
                             FOREIGN KEY (weapon) REFERENCES weapons(name),
                             FOREIGN KEY (shield) REFERENCES shields(name)
@@ -102,7 +102,7 @@ CREATE TABLE room_teams (
                             characters JSONB NOT NULL, -- []Character как JSON
                             PRIMARY KEY (game_session_id, team_id),
                             FOREIGN KEY (game_session_id) REFERENCES rooms(game_session_id) ON DELETE CASCADE,
-                            FOREIGN KEY (team_id) REFERENCES teams_config(id)
+                            FOREIGN KEY (team_id) REFERENCES teams(id)
 );
 
 CREATE TABLE room_players (
@@ -163,7 +163,7 @@ VALUES
     ON CONFLICT (id) DO NOTHING;
 
 
-INSERT INTO teams_config (id, name, icon_url, description)
+INSERT INTO teams (id, name, icon_url, description)
 VALUES
     (1, 'Партизан Два', './static/teams/partizan_dva.png', 'Вторая команда партизан, стойкие и выносливые бойцы.'),
     (2, 'Юг', './static/teams/south.png', 'Команда южных земель, известная своей тактикой.'),
@@ -185,7 +185,6 @@ VALUES
     (18, 'RaubRitter', './static/teams/raubritter.png', 'Разбойные рыцари, мастера боя.'),
     (19, 'Межевой рыцарь', './static/teams/border_knight.png', 'Стражи границ и традиций.')
     ON CONFLICT (id) DO NOTHING;
-
 
 INSERT INTO characters (id, name, team_id, role_id, count_of_ability, image_url, is_active, weapon, shield, is_titan_armour, height, weight, hp, stamina, initiative, wrestling, attack, defense, attack_min, attack_max)
 VALUES

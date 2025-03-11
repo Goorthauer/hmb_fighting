@@ -64,12 +64,12 @@ func (p *PostgresDatabase) GetShields() (map[string]types.Shield, error) {
 	return shields, nil
 }
 
-func (p *PostgresDatabase) GetTeamsConfig() (map[int]types.TeamConfig, error) {
+func (p *PostgresDatabase) GetTeams() (map[int]types.TeamConfig, error) {
 	rows, err := p.db.Query(`
 		SELECT id, name, icon_url, description
-		FROM teams_config`)
+		FROM teams`)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query teams_config: %v", err)
+		return nil, fmt.Errorf("failed to query teams: %v", err)
 	}
 	defer rows.Close()
 
@@ -280,7 +280,7 @@ func (p *PostgresDatabase) GetRoom(roomID string) (*types.Game, error) {
 	game.ShieldsConfig, _ = p.GetShields()
 	game.AbilitiesConfig, _ = p.GetAbilities()
 	game.RoleConfig, _ = p.GetRoleConfig()
-	game.TeamsConfig, _ = p.GetTeamsConfig()
+	game.TeamsConfig, _ = p.GetTeams()
 
 	return &game, nil
 }
