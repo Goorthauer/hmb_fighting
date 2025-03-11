@@ -300,40 +300,25 @@ export function updateAbilityCards(myTeam, data) {
 
 // Обновление лога боя
 export function updateBattleLog(data) {
-    if (!data || !data.teams || !Array.isArray(data.teams)) {
-        console.warn('Invalid data in updateBattleLog:', data);
+    if (!data || !data.battlelog || !Array.isArray(data.battlelog)) {
+        console.warn('Invalid or missing battlelog in data:', data);
         return;
     }
 
-    if (!previousState || !previousState.teams || !Array.isArray(previousState.teams)) {
-        previousState = { ...data, teams: data.teams.map(team => ({ ...team, characters: [...team.characters] })) };
+    const battleLogContainer = document.getElementById('logEntries');
+    if (!battleLogContainer) {
+        console.error('Battle log container not found');
         return;
     }
 
-    for (let teamIdx = 0; teamIdx < 2; teamIdx++) {
-        const prevTeam = previousState.teams[teamIdx]?.characters;
-        const currTeam = data.teams[teamIdx]?.characters;
+    // Очищаем текущий лог и добавляем все записи из battlelog
+    battleLogContainer.innerHTML = '';
+    data.battlelog.forEach(entry => {
+        addLogEntry(entry);
+    });
 
-        if (!prevTeam || !currTeam) {
-            console.warn(`Team ${teamIdx} is missing in previousState or data:`, { prevTeam, currTeam });
-            continue;
-        }
-
-        for (let i = 0; i < Math.min(prevTeam.length, currTeam.length); i++) {
-            const prev = prevTeam[i];
-            const curr = currTeam[i];
-            if (prev.position[0] !== curr.position[0] || prev.position[1] !== curr.position[1]) {
-                addLogEntry(`${curr.name} походил из (${prev.position[0]}, ${prev.position[1]}) в (${curr.position[0]}, ${curr.position[1]})`);
-            }
-            if (prev.hp !== curr.hp && curr.hp > 0) {
-                addLogEntry(`${curr.name} получил ${prev.hp - curr.hp} урона (Оставшееся здоровье: ${curr.hp})`);
-            }
-            if (prev.hp > 0 && curr.hp <= 0) {
-                addLogEntry(`${curr.name} был побежден${prev.position[0] === -1 && prev.position[1] === -1 ? ' (не был размещён)' : ''}`);
-            }
-        }
-    }
-    previousState = { ...data, teams: data.teams.map(team => ({ ...team, characters: [...team.characters] })) };
+    // Автоматическая прокрутка вниз
+    battleLogContainer.scrollTop = battleLogContainer.scrollHeight;
 }
 
 // Обновление заголовка хода

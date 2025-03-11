@@ -1,19 +1,10 @@
-package main
+package types
 
 import (
-	"math/rand"
-	"net/http"
 	"sync"
-	"time"
 
 	"github.com/gorilla/websocket"
 )
-
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-	CheckOrigin:     func(r *http.Request) bool { return true },
-}
 
 type User struct {
 	ID    string `json:"ID"`
@@ -83,34 +74,6 @@ type Character struct {
 	AttackMax int `json:"attackMax"`
 }
 
-func (c *Character) SetAbilities(abilitiesConfig map[string]Ability) {
-	// Инициализация генератора случайных чисел
-	rand.Seed(time.Now().UnixNano())
-
-	// Преобразуем ключи карты в слайс
-	keys := make([]string, 0, len(abilitiesConfig))
-	for key := range abilitiesConfig {
-		keys = append(keys, key)
-	}
-
-	// Очищаем текущие способности персонажа
-	c.Abilities = make([]string, 0)
-
-	// Выбираем случайные способности
-	for i := 0; i < c.CountOfAbility; i++ {
-		if len(keys) == 0 {
-			break // Если пул способностей пуст, выходим из цикла
-		}
-
-		// Выбираем случайный индекс
-		randomIndex := rand.Intn(len(keys))
-		// Добавляем выбранную способность в слайс персонажа
-		c.Abilities = append(c.Abilities, keys[randomIndex])
-		// Удаляем выбранную способность из пула, чтобы избежать дублирования
-		keys = append(keys[:randomIndex], keys[randomIndex+1:]...)
-	}
-}
-
 type Ability struct {
 	Name        string `json:"name"`
 	DisplayName string `json:"display_name"`
@@ -141,6 +104,7 @@ type GameState struct {
 	AbilitiesConfig map[string]Ability `json:"abilitiesConfig"`
 	ShieldsConfig   map[string]Shield  `json:"shieldsConfig"`
 	TeamsConfig     [2]TeamConfig      `json:"teamsConfig"`
+	Battlelog       []string           `json:"battlelog"`
 }
 
 type Team struct {
@@ -177,7 +141,9 @@ type Game struct {
 	AbilitiesConfig map[string]Ability
 	RoleConfig      map[string]Role
 	TeamsConfig     map[int]TeamConfig // Теперь map
-	mutex           sync.Mutex
+	Mutex           sync.Mutex
+	InitialOrder    []int
+	Battlelog       []string
 	Winner          int // ID команды-победителя, -1 если нет
 }
 

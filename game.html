@@ -82,6 +82,7 @@
     let latestData = null;
     let previousData = null;
     let eventListenersSet = false;
+
     // Добавляем обработчик для кнопки "Выйти из комнаты"
     document.getElementById('leaveRoomBtn').addEventListener('click', () => {
         const accessToken = localStorage.getItem('accessToken');
@@ -125,6 +126,7 @@
                 alert('Произошла ошибка при выходе из комнаты');
             });
     });
+
     function renderGame(data) {
         setGameState(data);
         updateCharacterCards(data);
@@ -136,7 +138,6 @@
         updateTurnHeader(data.teamID, data);
         document.getElementById('startGameBtn').classList.toggle('hidden', data.phase !== 'setup');
 
-        // Проверка на фазу finished
         if (data.phase === 'finished') {
             showGameOver(data);
             showGameOverEffects();
@@ -156,9 +157,8 @@
         text.textContent = `Бой завершён: ${winner}`;
         overlay.classList.remove('hidden');
 
-        // Обработчик кнопки рестарта
         document.getElementById('restartBattleBtn').onclick = () => {
-            document.getElementById('restartModal').style.display = 'block'; // Используем существующее модальное окно
+            document.getElementById('restartModal').style.display = 'block';
             overlay.classList.add('hidden');
         };
     }
@@ -185,11 +185,6 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ type: 'start', clientID: accessToken })
         });
-    });
-
-    // Открытие модального окна при нажатии на кнопку "Рестарт"
-    document.getElementById('restartGameBtn').addEventListener('click', () => {
-        document.getElementById('restartModal').style.display = 'block';
     });
 
     // Закрытие модального окна при нажатии на крестик
@@ -219,26 +214,21 @@
         })
             .then(response => {
                 if (!response.ok) {
-                    throw new Error('Ошибка сети');
+                    throw new Error('Ошибка сети: ' + response.statusText);
                 }
-                return response.text();
+                return response.json();
             })
-            .then(text => {
-                try {
-                    const data = JSON.parse(text);
-                    if (data.success) {
-                        alert('Игра успешно перезапущена!');
-                        renderGame(data.gameState); // Обновляем состояние игры
-                    } else {
-                        alert('Ошибка при перезапуске игры: ' + data.message);
-                    }
-                } catch (e) {
-                    console.log('Сервер вернул:', text);
+            .then(data => {
+                if (data.success) {
+                    console.log('Игра успешно перезапущена:', data.message);
+                    // Состояние обновится через WebSocket
+                } else {
+                    alert('Ошибка при перезапуске игры: ' + (data.message || 'Неизвестная ошибка'));
                 }
             })
             .catch(error => {
                 console.error('Ошибка:', error);
-                alert('Произошла ошибка при перезапуске игры');
+                alert('Произошла ошибка при перезапуске игры: ' + error.message);
             })
             .finally(() => {
                 document.getElementById('restartModal').style.display = 'none';

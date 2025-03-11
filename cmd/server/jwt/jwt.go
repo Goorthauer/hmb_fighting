@@ -1,7 +1,8 @@
-package main
+package jwt
 
 import (
 	"fmt"
+	"hmb_fighting/cmd/server/types"
 	"time"
 
 	jwt "github.com/golang-jwt/jwt/v5"
@@ -21,7 +22,7 @@ type TokenPair struct {
 
 var jwtKey = []byte("your-secret-key") // В реальном проекте используйте безопасный ключ
 
-func generateTokenPair(user User, role string) (TokenPair, error) {
+func GenerateTokenPair(user types.User, role string) (TokenPair, error) {
 	accessClaims := Claims{
 		ClientID: user.ID,
 		Email:    user.Email,
@@ -55,7 +56,7 @@ func generateTokenPair(user User, role string) (TokenPair, error) {
 	return TokenPair{AccessToken: accessTokenString, RefreshToken: refreshTokenString}, nil
 }
 
-func refreshToken(refreshTokenString string) (TokenPair, error) {
+func RefreshToken(refreshTokenString string) (TokenPair, error) {
 	token, err := jwt.ParseWithClaims(refreshTokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 		return jwtKey, nil
 	})
@@ -68,5 +69,19 @@ func refreshToken(refreshTokenString string) (TokenPair, error) {
 		return TokenPair{}, fmt.Errorf("invalid or expired refresh token")
 	}
 
-	return generateTokenPair(User{Email: claims.Email, Name: claims.Email}, claims.Role)
+	return GenerateTokenPair(types.User{Email: claims.Email, Name: claims.Email}, claims.Role)
+}
+
+func ValidateToken(tokenString string) (*Claims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+		return jwtKey, nil
+	})
+	if err != nil || !token.Valid {
+		return nil, fmt.Errorf("invalid token: %v", err)
+	}
+	claims, ok := token.Claims.(*Claims)
+	if !ok || claims.ExpiresAt.Before(time.Now()) {
+		return nil, fmt.Errorf("invalid or expired token")
+	}
+	return claims, nil
 }

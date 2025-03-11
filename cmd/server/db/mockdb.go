@@ -1,11 +1,18 @@
-package main
+package db
+
+import (
+	"hmb_fighting/cmd/server/types"
+	"sync"
+)
+
+var mutex sync.Mutex
 
 // MockDatabase имитирует базу данных с предопределёнными данными
 type MockDatabase struct{}
 
 // GetWeapons возвращает конфигурацию оружия
-func (m *MockDatabase) GetWeapons() (map[string]Weapon, error) {
-	return map[string]Weapon{
+func (m *MockDatabase) GetWeapons() (map[string]types.Weapon, error) {
+	return map[string]types.Weapon{
 		"falchion":           {Name: "falchion", DisplayName: "Фальшион", Range: 1, IsTwoHanded: false, ImageURL: "./static/weapons/default.png", AttackBonus: 2, GrappleBonus: 0},
 		"axe":                {Name: "axe", DisplayName: "Топор", Range: 1, IsTwoHanded: false, ImageURL: "./static/weapons/default.png", AttackBonus: 0, GrappleBonus: 8},
 		"two_handed_sword":   {Name: "two_handed_sword", DisplayName: "Двуручный меч", Range: 2, IsTwoHanded: true, ImageURL: "./static/weapons/default.png", AttackBonus: 2, GrappleBonus: 0},
@@ -14,8 +21,8 @@ func (m *MockDatabase) GetWeapons() (map[string]Weapon, error) {
 	}, nil
 }
 
-func (m *MockDatabase) GetShields() (map[string]Shield, error) {
-	return map[string]Shield{
+func (m *MockDatabase) GetShields() (map[string]types.Shield, error) {
+	return map[string]types.Shield{
 		"buckler": {Name: "buckler", DisplayName: "Баклер", DefenseBonus: 1, ImageURL: "./static/shields/default.png", AttackBonus: 1, GrappleBonus: 1},
 		"shield":  {Name: "shield", DisplayName: "Тарч", DefenseBonus: 2, ImageURL: "./static/shields/default.png", AttackBonus: 1, GrappleBonus: 0},
 		"tower":   {Name: "tower", DisplayName: "Ростовой щит", DefenseBonus: 3, ImageURL: "./static/shields/default.png", AttackBonus: 0, GrappleBonus: -1},
@@ -23,8 +30,8 @@ func (m *MockDatabase) GetShields() (map[string]Shield, error) {
 	}, nil
 }
 
-func (m *MockDatabase) GetAbilities() (map[string]Ability, error) {
-	abilities := map[string]Ability{
+func (m *MockDatabase) GetAbilities() (map[string]types.Ability, error) {
+	abilities := map[string]types.Ability{
 		"yama_arashi": {
 			Name:        "yama_arashi",
 			DisplayName: "Подхват",
@@ -135,8 +142,8 @@ func (m *MockDatabase) GetAbilities() (map[string]Ability, error) {
 
 // GetCharacters возвращает список персонажей
 
-func (m *MockDatabase) GetCharacters() ([]Character, error) {
-	return []Character{
+func (m *MockDatabase) GetCharacters() ([]types.Character, error) {
+	return []types.Character{
 		// TeamID 1: Партизан Два
 		{ID: 15, Name: "Тюляков Алексей", TeamID: 1, IsActive: true, RoleID: 3, HP: 100, Stamina: 9, AttackMin: 12, AttackMax: 18, Defense: 10, Initiative: 11, Wrestling: 8, Attack: 12, Weapon: "two_handed_sword", Shield: "", Height: 177, Weight: 84, CountOfAbility: 4, ImageURL: "./static/characters/default.png"},         // Поддержка (было Stamina: 12, Initiative: 14)
 		{ID: 14, Name: "Чуклов Григорий", TeamID: 1, IsActive: true, RoleID: 2, HP: 100, Stamina: 8, AttackMin: 12, AttackMax: 18, Defense: 12, Initiative: 8, Wrestling: 10, Attack: 12, Weapon: "falchion", Shield: "shield", Height: 171, Weight: 77, CountOfAbility: 4, ImageURL: "./static/characters/default.png"},           // Боец (было Stamina: 10, Initiative: 10)
@@ -326,8 +333,8 @@ func (m *MockDatabase) GetCharacters() ([]Character, error) {
 	}, nil
 }
 
-func (m *MockDatabase) GetRoleConfig() (map[string]Role, error) {
-	return map[string]Role{
+func (m *MockDatabase) GetRoleConfig() (map[string]types.Role, error) {
+	return map[string]types.Role{
 		"0": {
 			Name: "Танк",
 			ID:   "0",
@@ -351,8 +358,8 @@ func (m *MockDatabase) GetRoleConfig() (map[string]Role, error) {
 	}, nil
 }
 
-func (m *MockDatabase) GetTeamsConfig() (map[int]TeamConfig, error) {
-	return map[int]TeamConfig{
+func (m *MockDatabase) GetTeamsConfig() (map[int]types.TeamConfig, error) {
+	return map[int]types.TeamConfig{
 		1:  {ID: 1, Name: "Партизан Два", IconURL: "./static/teams/partizan_dva.png", Description: "Вторая команда партизан, стойкие и выносливые бойцы."},
 		2:  {ID: 2, Name: "Юг", IconURL: "./static/teams/south.png", Description: "Команда южных земель, известная своей тактикой."},
 		3:  {ID: 3, Name: "НСК", IconURL: "./static/teams/nsk.png", Description: "Новосибирские бойцы, сильные и решительные."},
@@ -381,7 +388,7 @@ func NewMockDatabase() Database {
 	return &MockDatabase{}
 }
 
-func (m *MockDatabase) SetUser(refreshToken string, user User) error {
+func (m *MockDatabase) SetUser(refreshToken string, user types.User) error {
 	mutex.Lock()
 	users[user.Email] = user
 	if refreshToken != "" {
@@ -391,27 +398,27 @@ func (m *MockDatabase) SetUser(refreshToken string, user User) error {
 	return nil
 }
 
-func (m *MockDatabase) GetUserByEmail(email string) (User, error) {
+func (m *MockDatabase) GetUserByEmail(email string) (types.User, error) {
 	mutex.Lock()
 	user, exists := users[email]
 	mutex.Unlock()
 	if exists {
 		return user, nil
 	}
-	return User{}, nil
+	return types.User{}, nil
 }
 
-func (m *MockDatabase) GetUserByRefresh(token string) (User, error) {
+func (m *MockDatabase) GetUserByRefresh(token string) (types.User, error) {
 	mutex.Lock()
 	user, exists := usersWithRefresh[token]
 	mutex.Unlock()
 	if exists {
 		return user, nil
 	}
-	return User{}, nil
+	return types.User{}, nil
 }
 
-func (m *MockDatabase) GetRoom(roomID string) (*Game, error) {
+func (m *MockDatabase) GetRoom(roomID string) (*types.Game, error) {
 	mutex.Lock()
 	game, exists := rooms[roomID]
 	mutex.Unlock()
@@ -421,13 +428,13 @@ func (m *MockDatabase) GetRoom(roomID string) (*Game, error) {
 	return nil, nil
 }
 
-func (m *MockDatabase) SetRoom(game *Game) error {
+func (m *MockDatabase) SetRoom(game *types.Game) error {
 	mutex.Lock()
 	rooms[game.GameSessionId] = game
 	mutex.Unlock()
 	return nil
 }
 
-var rooms = make(map[string]*Game)
-var users = make(map[string]User)
-var usersWithRefresh = make(map[string]User)
+var rooms = make(map[string]*types.Game)
+var users = make(map[string]types.User)
+var usersWithRefresh = make(map[string]types.User)

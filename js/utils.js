@@ -44,4 +44,6 @@ export function addLogEntry(message) {
     entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
     logEntries.appendChild(entry);
     logEntries.scrollTop = logEntries.scrollHeight;
+    console.log(entry)
+    console.log(`[${new Date().toLocaleTimeString()}] ${message}`)
 }
