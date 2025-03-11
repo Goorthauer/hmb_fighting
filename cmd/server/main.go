@@ -20,6 +20,7 @@ func main() {
 	http.Handle("/check-teams", enableCORS(http.HandlerFunc(handler.handleCheckTeams)))
 	http.Handle("/set-team", enableCORS(http.HandlerFunc(handler.handleSetTeam)))
 	http.Handle("/restart", enableCORS(http.HandlerFunc(handler.handleRestart)))
+	http.Handle("/leave-room", enableCORS(http.HandlerFunc(handler.handleLeaveRoom))) // Новый эндпоинт
 	http.Handle("/swagger/", swagger.WrapHandler)
 
 	log.Println("Starting server on :8080")

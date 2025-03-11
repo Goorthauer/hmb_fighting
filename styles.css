@@ -915,6 +915,21 @@ body, html {
     transform: scale(1.05);
 }
 
+#leaveRoomBtn {
+    background: linear-gradient(135deg, #b72929, #d32f2f);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    text-transform: uppercase;
+    transition: transform 0.2s, background 0.2s;
+    width: 100%;
+    padding: 10px;
+    margin-top: 10px;
+}
+
 #restartGameBtn {
     background: linear-gradient(135deg, #ff6b6b, #d32f2f);
     color: white;
@@ -1031,6 +1046,7 @@ body, html {
     background: rgba(255, 255, 255, 0.1);
     border-radius: 3px;
 }
+
 .team-selection-container {
     background: linear-gradient(135deg, #2a2a40, #1e1e2f);
     padding: 30px;
@@ -1175,14 +1191,24 @@ body, html {
 }
 
 @keyframes pulse {
-    0% { box-shadow: 0 0 20px rgba(255, 215, 0, 1); }
-    50% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.5); }
-    100% { box-shadow: 0 0 20px rgba(255, 215, 0, 1); }
+    0% {
+        box-shadow: 0 0 20px rgba(255, 215, 0, 1);
+    }
+    50% {
+        box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+    }
+    100% {
+        box-shadow: 0 0 20px rgba(255, 215, 0, 1);
+    }
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
 }
 
 .game-over-overlay {

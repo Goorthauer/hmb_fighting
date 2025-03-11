@@ -533,6 +533,83 @@ func (h *Handler) handleCheckTeams(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+func (h *Handler) handleLeaveRoom(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		AccessToken string `json:"accessToken"`
+		RoomID      string `json:"roomID"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	claims, err := validateToken(req.AccessToken)
+	if err != nil {
+		http.Error(w, "Invalid token", http.StatusUnauthorized)
+		return
+	}
+
+	game, err := h.db.GetRoom(req.RoomID)
+	if err != nil || game == nil {
+		http.Error(w, "Room not found", http.StatusNotFound)
+		return
+	}
+
+	game.mutex.Lock()
+	defer game.mutex.Unlock()
+
+	// Проверяем, является ли клиент игроком в этой комнате
+	playerIndex := -1
+	for i, playerID := range game.Players {
+		if playerID == claims.ClientID {
+			playerIndex = i
+			break
+		}
+	}
+
+	if playerIndex == -1 {
+		http.Error(w, "You are not a player in this room", http.StatusForbidden)
+		return
+	}
+
+	// Удаляем игрока из списка игроков
+	delete(game.Players, playerIndex)
+
+	// Удаляем все соединения этого клиента из карты, но не закрываем их
+	for conn, client := range game.Connections {
+		if client.ClientID == claims.ClientID {
+			delete(game.Connections, conn)
+		}
+	}
+
+	// Если в комнате не осталось игроков, сбрасываем фазу
+	if len(game.Players) == 0 {
+		game.Phase = "pick_team"
+		log.Printf("Room %s is now empty after %s left", req.RoomID, claims.ClientID)
+	} else {
+		log.Printf("Player %s left room %s, %d players remaining", claims.ClientID, req.RoomID, len(game.Players))
+	}
+
+	// Сохраняем обновленное состояние комнаты
+	err = h.db.SetRoom(game)
+	if err != nil {
+		http.Error(w, "Failed to update room", http.StatusInternalServerError)
+		return
+	}
+
+	// Уведомляем оставшихся игроков через WebSocket
+	if len(game.Players) > 0 {
+		broadcastGameState(game)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Successfully left the room",
+	})
+	log.Printf("Player %s left room %s", claims.ClientID, req.RoomID)
+}
+
 func handleSetupPhase(game *Game, client *Client, action Action) {
 	if action.Type == "place" && client.TeamID >= 0 {
 		char := findCharacter(game, action.CharacterID)

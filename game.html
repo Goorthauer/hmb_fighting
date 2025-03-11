@@ -18,10 +18,10 @@
         </div>
         <div id="rightPanel">
             <div id="turnHeader">
-                <span id="turnText">ВАШ ХОД</span>
+                <span id="turnText">РАССТАНОВКА</span>
             </div>
             <div id="phaseContainer">
-                <button id="restartGameBtn">Рестарт</button>
+                <button id="leaveRoomBtn">RAGE QUIT</button>
                 <span class="phase"></span>
                 <span class="progress">
                     <span class="team0"></span>
@@ -82,7 +82,49 @@
     let latestData = null;
     let previousData = null;
     let eventListenersSet = false;
+    // Добавляем обработчик для кнопки "Выйти из комнаты"
+    document.getElementById('leaveRoomBtn').addEventListener('click', () => {
+        const accessToken = localStorage.getItem('accessToken');
+        const roomID = localStorage.getItem('currentRoom');
+        const clientID = localStorage.getItem('clientID');
 
+        console.log('Before leaving:', { accessToken, roomID, clientID });
+
+        if (!accessToken || !roomID) {
+            alert('Ошибка: вы не в комнате или не авторизованы');
+            return;
+        }
+
+        fetch('http://localhost:8080/leave-room', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ accessToken, roomID })
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Ошибка при выходе из комнаты');
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Server response:', data);
+                if (data.success) {
+                    localStorage.removeItem('currentRoom');
+                    console.log('After removeItem:', {
+                        accessToken: localStorage.getItem('accessToken'),
+                        clientID: localStorage.getItem('clientID'),
+                        currentRoom: localStorage.getItem('currentRoom')
+                    });
+                    window.location.href = 'index.html';
+                } else {
+                    alert('Ошибка при выходе из комнаты: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка:', error);
+                alert('Произошла ошибка при выходе из комнаты');
+            });
+    });
     function renderGame(data) {
         setGameState(data);
         updateCharacterCards(data);
