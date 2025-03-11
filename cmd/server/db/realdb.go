@@ -72,7 +72,7 @@ func (p *PostgresDatabase) cacheDel(ctx context.Context, key string) error {
 
 func (p *PostgresDatabase) GetWeapons() (map[string]types.Weapon, error) {
 	ctx := context.Background()
-	cacheKey := "weapons"
+	cacheKey := "weapons_"
 	var weapons map[string]types.Weapon
 
 	// Проверяем кеш
@@ -108,7 +108,7 @@ func (p *PostgresDatabase) GetWeapons() (map[string]types.Weapon, error) {
 
 func (p *PostgresDatabase) GetShields() (map[string]types.Shield, error) {
 	ctx := context.Background()
-	cacheKey := "shields"
+	cacheKey := "shields_"
 	var shields map[string]types.Shield
 
 	// Проверяем кеш
@@ -143,7 +143,7 @@ func (p *PostgresDatabase) GetShields() (map[string]types.Shield, error) {
 
 func (p *PostgresDatabase) GetTeams() (map[int]types.TeamConfig, error) {
 	ctx := context.Background()
-	cacheKey := "teams"
+	cacheKey := "teams_"
 	var teams map[int]types.TeamConfig
 
 	// Проверяем кеш
@@ -178,7 +178,7 @@ func (p *PostgresDatabase) GetTeams() (map[int]types.TeamConfig, error) {
 
 func (p *PostgresDatabase) GetCharacters() ([]types.Character, error) {
 	ctx := context.Background()
-	cacheKey := "characters"
+	cacheKey := "characters_"
 	var characters []types.Character
 
 	// Проверяем кеш
@@ -216,7 +216,7 @@ func (p *PostgresDatabase) GetCharacters() ([]types.Character, error) {
 
 func (p *PostgresDatabase) GetAbilities() (map[string]types.Ability, error) {
 	ctx := context.Background()
-	cacheKey := "abilities"
+	cacheKey := "abilities_"
 	var abilities map[string]types.Ability
 
 	// Проверяем кеш
@@ -251,7 +251,7 @@ func (p *PostgresDatabase) GetAbilities() (map[string]types.Ability, error) {
 
 func (p *PostgresDatabase) GetRoleConfig() (map[string]types.Role, error) {
 	ctx := context.Background()
-	cacheKey := "role_config"
+	cacheKey := "role_config_"
 	var roles map[string]types.Role
 
 	// Проверяем кеш
