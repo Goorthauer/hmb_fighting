@@ -604,13 +604,37 @@ func handleGamePhase(game *Game, client *Client, action Action, claims *Claims) 
 func handleMoveAction(game *Game, currentChar *Character, action Action) {
 	if game.Phase == "move" && action.Position[0] >= 0 && action.Position[0] < 16 && action.Position[1] >= 0 && action.Position[1] < 9 {
 		if game.Board[action.Position[0]][action.Position[1]] == -1 {
-			path := findPath(currentChar.Position[0], currentChar.Position[1], action.Position[0], action.Position[1], currentChar.Stamina, game.Board, currentChar.ID)
+			path, opportunityAttacks := findPath(currentChar.Position[0], currentChar.Position[1], action.Position[0], action.Position[1], currentChar.Stamina, game.Board, currentChar.ID, game)
 			if len(path) > 0 {
-				game.Board[currentChar.Position[0]][currentChar.Position[1]] = -1
-				currentChar.Position = action.Position
-				game.Board[action.Position[0]][action.Position[1]] = currentChar.ID
-				game.Phase = "action"
-				log.Printf("%s moved %s to (%d, %d)", currentChar.Name, currentChar.Name, action.Position[0], action.Position[1])
+				// Применяем атаки в догонку
+				totalDamage := 0
+				for _, oa := range opportunityAttacks {
+					attacker := findCharacter(game, oa.AttackerID)
+					if oa.Type == "trip" {
+						log.Printf("%s tripped %s, knocking them out!", attacker.Name, currentChar.Name)
+						totalDamage += oa.Damage
+					} else if oa.Type == "attack" {
+						log.Printf("%s hit %s for %d damage in pursuit!", attacker.Name, currentChar.Name, oa.Damage)
+						totalDamage += oa.Damage
+					}
+					currentChar.HP -= oa.Damage
+					if currentChar.HP <= 0 {
+						game.Board[currentChar.Position[0]][currentChar.Position[1]] = -1
+						break
+					}
+				}
+
+				// Если персонаж выжил, выполняем перемещение
+				if currentChar.HP > 0 {
+					game.Board[currentChar.Position[0]][currentChar.Position[1]] = -1
+					currentChar.Position = action.Position
+					game.Board[action.Position[0]][action.Position[1]] = currentChar.ID
+					game.Phase = "action"
+					log.Printf("%s moved to (%d, %d)", currentChar.Name, action.Position[0], action.Position[1])
+				} else {
+					log.Printf("%s was knocked out during move to (%d, %d)", currentChar.Name, action.Position[0], action.Position[1])
+					nextTurn(game) // Завершаем ход, если персонаж погиб
+				}
 			} else {
 				log.Printf("%s tried to move %s to (%d, %d), but path blocked or out of stamina", currentChar.Name, currentChar.Name, action.Position[0], action.Position[1])
 			}
@@ -676,6 +700,7 @@ func broadcastGameState(game *Game) {
 		//}
 		state := GameState{
 			Teams:           teams,
+			Winner:          game.Winner,
 			CurrentTurn:     game.CurrentTurn,
 			Phase:           game.Phase,
 			Board:           game.Board,

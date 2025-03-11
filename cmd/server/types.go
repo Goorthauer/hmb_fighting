@@ -130,6 +130,7 @@ type Effect struct {
 
 type GameState struct {
 	Teams           [2]Team            `json:"teams"`
+	Winner          int                `json:"winner"`
 	CurrentTurn     int                `json:"currentTurn"`
 	Phase           string             `json:"phase"`
 	Board           [16][9]int         `json:"board"` // Обновляем с [20][10] на [16][9]
@@ -188,4 +189,11 @@ type Node struct {
 	H      int
 	F      int
 	Parent *Node
+}
+
+// Структура для результата атаки в догонку
+type OpportunityAttack struct {
+	AttackerID int
+	Type       string // "trip" или "attack"
+	Damage     int
 }

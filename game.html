@@ -21,7 +21,7 @@
                 <span id="turnText">ВАШ ХОД</span>
             </div>
             <div id="phaseContainer">
-                <button id="restartGameBtn">Рестарт</button> <!-- Новая кнопка -->
+                <button id="restartGameBtn">Рестарт</button>
                 <span class="phase"></span>
                 <span class="progress">
                     <span class="team0"></span>
@@ -38,6 +38,12 @@
         </div>
     </div>
     <div id="characterCards"></div>
+</div>
+
+<!-- Оверлей для завершения боя -->
+<div id="gameOverOverlay" class="game-over-overlay hidden">
+    <div id="gameOverText" class="game-over-text"></div>
+    <button id="restartBattleBtn" class="restart-battle-btn">Рестарт боя</button>
 </div>
 
 <!-- Модальное окно для подтверждения рестарта -->
@@ -64,7 +70,7 @@
     import {setGameState} from './js/state.js';
     import {connectWebSocket} from './js/websocket.js';
     import {updateCharacterCards, updateAbilityCards, updatePhaseAndProgress, updateBattleLog, updateTurnHeader, updateEndTurnButton} from './js/renderUI.js';
-    import {drawBoard} from './js/renderCanvas.js';
+    import {drawBoard, showGameOverEffects} from './js/renderCanvas.js';
     import {setupEventListeners, setupCardDragListeners} from './js/eventHandlers.js';
 
     const accessToken = localStorage.getItem('accessToken');
@@ -74,6 +80,7 @@
 
     const room = localStorage.getItem('currentRoom');
     let latestData = null;
+    let previousData = null;
     let eventListenersSet = false;
 
     function renderGame(data) {
@@ -86,17 +93,47 @@
         updateEndTurnButton(data.teamID, data);
         updateTurnHeader(data.teamID, data);
         document.getElementById('startGameBtn').classList.toggle('hidden', data.phase !== 'setup');
+
+        // Проверка на фазу finished
+        if (data.phase === 'finished') {
+            showGameOver(data);
+            showGameOverEffects();
+        }
+
         if (!eventListenersSet) {
             setupEventListeners(data.teamID);
-            setupCardDragListeners(data.teamID); // Добавляем настройку перетаскивания
+            setupCardDragListeners(data.teamID);
             eventListenersSet = true;
         }
     }
+
+    function showGameOver(data) {
+        const overlay = document.getElementById('gameOverOverlay');
+        const text = document.getElementById('gameOverText');
+        const winner = data.winner === data.teamID ? 'Победа!' : 'Поражение!';
+        text.textContent = `Бой завершён: ${winner}`;
+        overlay.classList.remove('hidden');
+
+        // Обработчик кнопки рестарта
+        document.getElementById('restartBattleBtn').onclick = () => {
+            document.getElementById('restartModal').style.display = 'block'; // Используем существующее модальное окно
+            overlay.classList.add('hidden');
+        };
+    }
+
     connectWebSocket(room, false, (event) => {
         const data = JSON.parse(event.data);
         console.log('Received WebSocket data:', data);
         latestData = data;
-        renderGame(latestData);
+
+        if (latestData.phase !== 'pick_team' && (!previousData || previousData.phase === 'pick_team')) {
+            console.log('Phase changed from pick_team, rendering full state');
+            renderGame(latestData);
+        } else {
+            renderGame(latestData);
+        }
+
+        previousData = { ...latestData };
     });
 
     document.getElementById('startGameBtn').addEventListener('click', () => {
@@ -162,7 +199,7 @@
                 alert('Произошла ошибка при перезапуске игры');
             })
             .finally(() => {
-                document.getElementById('restartModal').style.display = 'none'; // Закрываем модальное окно
+                document.getElementById('restartModal').style.display = 'none';
             });
     });
 

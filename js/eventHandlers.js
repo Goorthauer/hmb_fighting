@@ -10,7 +10,7 @@ import {
 } from './state.js';
 import { sendMessage } from './websocket.js';
 import { animateMove, drawBoard } from './renderCanvas.js';
-import { findPath, getGridPosition, canMove, canAttackOrUseAbility, isWithinAttackRange, killUnplacedCharacters } from './gameLogic.js';
+import { findPath, getGridPosition, canMove, canAttackOrUseAbility, isWithinAttackRange, killUnplacedCharacters,checkOpportunityAttack } from './gameLogic.js';
 import { findCharacter } from './utils.js';
 import { canvas } from './constants.js';
 
@@ -125,8 +125,35 @@ function handleMoveCharacter(gridX, gridY, myTeam, clientID, draggedChar) {
     if (canMove(gridX, gridY)) {
         console.log(`Moving ${draggedChar.name} to (${gridX}, ${gridY})`);
         const path = findPath(draggedChar.position[0], draggedChar.position[1], gridX, gridY, draggedChar.stamina);
+
+        // Проверка атаки в догонку от всех врагов (только для логов и анимации, сервер сам применит урон)
+        let opportunityAttacks = [];
+        for (let x = 0; x < 16; x++) {
+            for (let y = 0; y < 9; y++) {
+                if (gameState.board[x][y] !== -1) {
+                    const enemy = findCharacter(gameState.teams, gameState.board[x][y]);
+                    if (enemy && enemy.team !== myTeam && enemy.hp > 0) {
+                        const result = checkOpportunityAttack(enemy, draggedChar, draggedChar.position[0], draggedChar.position[1], gridX, gridY, path);
+                        if (result.type !== 'none') {
+                            opportunityAttacks.push({ attacker: enemy, result });
+                        }
+                    }
+                }
+            }
+        }
+
         setMovePath(path);
         animateMove(draggedChar, path, () => {
+            // Логируем атаки в догонку, но не отправляем их как отдельные действия
+            opportunityAttacks.forEach(({ attacker, result }) => {
+                if (result.type === 'trip') {
+                    console.log(`${attacker.name} tripped ${draggedChar.name}, knocking them out!`);
+                } else if (result.type === 'attack') {
+                    console.log(`${attacker.name} hit ${draggedChar.name} for ${result.damage} damage in pursuit!`);
+                }
+            });
+
+            // Отправляем только перемещение, сервер сам обработает атаки в догонку
             sendMessage(JSON.stringify({
                 type: 'move',
                 clientID: clientID,

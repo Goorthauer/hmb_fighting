@@ -243,13 +243,30 @@ func applyWrestlingMove(game *Game, attacker, target *Character, moveName string
 }
 
 func nextTurn(game *Game) {
+	aliveTeamsOne := 0
+	aliveTeamsTwo := 0
 	liveChars := []Character{}
 	for _, team := range game.Teams {
 		for _, char := range team.Characters {
 			if char.HP > 0 {
 				liveChars = append(liveChars, char)
+				if char.TeamID == 0 {
+					aliveTeamsOne++
+				} else if char.TeamID == 1 {
+					aliveTeamsTwo++
+				}
 			}
 		}
+	}
+	if aliveTeamsOne < 1 {
+		game.Winner = 1
+		game.Phase = "finished"
+		return
+	}
+	if aliveTeamsTwo < 1 {
+		game.Winner = 0
+		game.Phase = "finished"
+		return
 	}
 	if len(liveChars) == 0 {
 		return
@@ -276,28 +293,7 @@ func nextTurn(game *Game) {
 			}
 		}
 	}
-	aliveTeamsOne := 0
-	aliveTeamsTwo := 0
-	for _, team := range game.Teams {
-		for _, char := range team.Characters {
-			if char.HP > 0 {
-				if char.TeamID == 0 {
-					aliveTeamsOne++
-				} else if char.TeamID == 1 {
-					aliveTeamsTwo++
-				}
-				break
-			}
-		}
-	}
-	if aliveTeamsOne < 1 {
-		game.Winner = 1
-		game.Phase = "finished"
-	}
-	if aliveTeamsTwo < 1 {
-		game.Winner = 0
-		game.Phase = "finished"
-	}
+
 }
 
 func sortCharactersByInitiative(chars []Character) {

@@ -1,8 +1,7 @@
 import { gameState, draggingCharacter, selectedAbility } from './state.js';
 import { cellWidth, cellHeight } from './constants.js';
-import { findCharacter } from './utils.js';
+import { findCharacter, addLogEntry } from './utils.js';
 import { sendMessage } from './websocket.js';
-import { addLogEntry } from './utils.js';
 
 // Узел для алгоритма A*
 class Node {
@@ -98,6 +97,71 @@ export function getGridPosition(event) {
     const gridX = Math.floor(x / cellWidth);
     const gridY = Math.floor(y / cellHeight);
     return { gridX, gridY, x, y };
+}
+
+// Функция для проверки зоны поражения (1 клетка вокруг позиции)
+function isInThreatZone(x, y, enemyX, enemyY) {
+    return Math.abs(x - enemyX) <= 1 && Math.abs(y - enemyY) <= 1;
+}
+
+// Подсчёт врагов в зоне поражения вокруг позиции
+function countEnemiesInThreatZone(x, y, teamID) {
+    let count = 0;
+    for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+            const checkX = x + dx;
+            const checkY = y + dy;
+            if (checkX >= 0 && checkX < 16 && checkY >= 0 && checkY < 9 && gameState.board[checkX][checkY] !== -1) {
+                const char = findCharacter(gameState.teams, gameState.board[checkX][checkY]);
+                if (char && char.team !== teamID && char.hp > 0) {
+                    count++;
+                }
+            }
+        }
+    }
+    return count;
+}
+
+// Проверка атаки в догонку
+export function checkOpportunityAttack(attacker, target, startX, startY, endX, endY, path) {
+    const startInThreat = isInThreatZone(startX, startY, attacker.position[0], attacker.position[1]);
+    const endInThreat = isInThreatZone(endX, endY, attacker.position[0], attacker.position[1]);
+    const enemies = countEnemiesInThreatZone(startX, startY, target.team);
+
+    // Условие: выходит из зоны поражения или заходит и выходит
+    if ((startInThreat && !endInThreat) || (path.some(p => isInThreatZone(p.x, p.y, attacker.position[0], attacker.position[1])) && !endInThreat)) {
+        const pathLength = path.length - 1; // Минус стартовая позиция
+        const wrestlingDiff = attacker.wrestling - target.wrestling;
+
+        // Базовые шансы
+        let tripChance = 15 + wrestlingDiff * 2 + pathLength * 3 + enemies * 5;
+        let attackChance = 45 + pathLength * 2 + enemies * 3;
+
+        // Ограничения
+        tripChance = Math.max(5, Math.min(90, tripChance));
+        attackChance = Math.max(10, Math.min(90 - tripChance, attackChance)); // Удар не пересекается с подсечкой
+        const total = tripChance + attackChance;
+        const nothingChance = 100 - total;
+
+        const roll = Math.random() * 100;
+        console.log(`Opportunity Attack by ${attacker.name} on ${target.name}: Trip=${tripChance}%, Attack=${attackChance}%, Nothing=${nothingChance}%, Roll=${roll}`);
+
+        if (roll < tripChance) {
+            // Подсечка: мгновенное убийство
+            addLogEntry(`${attacker.name} сделал подсечку ${target.name}, мгновенно вырубив его!`);
+            return { type: 'trip', damage: target.hp };
+        } else if (roll < tripChance + attackChance) {
+            // Удар: обычный урон
+            const damage = Math.floor(Math.random() * (attacker.attackMax - attacker.attackMin + 1)) + attacker.attackMin;
+            addLogEntry(`${attacker.name} ударил ${target.name} в догонку, нанеся ${damage} урона.`);
+            return { type: 'attack', damage };
+        } else {
+            // Ничего не произошло
+            addLogEntry(`${target.name} успешно ушёл от ${attacker.name}.`);
+            return { type: 'none', damage: 0 };
+        }
+    }
+    return { type: 'none', damage: 0 };
 }
 
 // Проверка возможности перемещения

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"sync"
 )
 
@@ -34,13 +35,18 @@ func max(a, b int) int {
 	return b
 }
 
-// A* для поиска пути на сервере
-func findPath(startX, startY, endX, endY, stamina int, board [16][9]int, currentCharID int) [][2]int {
+// A* для поиска пути на сервере с учётом атак в догонку
+func findPath(startX, startY, endX, endY, stamina int, board [16][9]int, currentCharID int, game *Game) (path [][2]int, opportunityAttacks []OpportunityAttack) {
 	openList := make([]*Node, 0)
 	closedList := make(map[string]bool)
 	startNode := &Node{X: startX, Y: startY, G: 0, H: heuristic(startX, startY, endX, endY)}
 	startNode.F = startNode.G + startNode.H
 	openList = append(openList, startNode)
+
+	currentChar := findCharacter(game, currentCharID)
+	if currentChar == nil {
+		return nil, nil
+	}
 
 	for len(openList) > 0 {
 		currentIdx := 0
@@ -59,16 +65,19 @@ func findPath(startX, startY, endX, endY, stamina int, board [16][9]int, current
 		closedList[key] = true
 
 		if current.X == endX && current.Y == endY {
-			path := make([][2]int, 0)
+			path = make([][2]int, 0)
 			node := current
 			for node != nil {
 				path = append([][2]int{[2]int{node.X, node.Y}}, path...)
 				node = node.Parent
 			}
 			if len(path)-1 > stamina {
-				return nil
+				return nil, nil
 			}
-			return path
+
+			// Проверка атак в догонку
+			opportunityAttacks = checkOpportunityAttacks(game, currentChar, path)
+			return path, opportunityAttacks
 		}
 
 		neighbors := [][2]int{{0, -1}, {0, 1}, {-1, 0}, {1, 0}}
@@ -98,7 +107,7 @@ func findPath(startX, startY, endX, endY, stamina int, board [16][9]int, current
 			}
 		}
 	}
-	return nil // Путь не найден
+	return nil, nil // Путь не найден
 }
 
 func heuristic(x1, y1, x2, y2 int) int {
@@ -106,3 +115,70 @@ func heuristic(x1, y1, x2, y2 int) int {
 }
 
 var mutex = sync.Mutex{}
+
+// Проверка атак в догонку
+func checkOpportunityAttacks(game *Game, target *Character, path [][2]int) []OpportunityAttack {
+	var attacks []OpportunityAttack
+	startX, startY := path[0][0], path[0][1]
+	endX, endY := path[len(path)-1][0], path[len(path)-1][1]
+
+	for i := 0; i < 16; i++ {
+		for j := 0; j < 9; j++ {
+			if game.Board[i][j] != -1 {
+				attacker := findCharacter(game, game.Board[i][j])
+				if attacker != nil && attacker.TeamID != target.TeamID && attacker.HP > 0 {
+					startInThreat := isInThreatZone(startX, startY, attacker.Position[0], attacker.Position[1])
+					endInThreat := isInThreatZone(endX, endY, attacker.Position[0], attacker.Position[1])
+					entersAndExits := false
+					for _, p := range path[1 : len(path)-1] { // Проверяем промежуточные точки
+						if isInThreatZone(p[0], p[1], attacker.Position[0], attacker.Position[1]) {
+							entersAndExits = true
+							break
+						}
+					}
+
+					if (startInThreat && !endInThreat) || (entersAndExits && !endInThreat) {
+						pathLength := len(path) - 1
+						enemies := countSurroundingEnemies(game, target)
+						wrestlingDiff := attacker.Wrestling - target.Wrestling
+
+						tripChance := 15 + wrestlingDiff*2 + pathLength*3 + enemies*5
+						attackChance := 45 + pathLength*2 + enemies*3
+						if tripChance < 5 {
+							tripChance = 5
+						}
+						if tripChance > 90 {
+							tripChance = 90
+						}
+						if attackChance > 90-tripChance {
+							attackChance = 90 - tripChance
+						}
+
+						roll := rand.Intn(100)
+						log.Printf("Opportunity Attack by %s on %s: Trip=%d%%, Attack=%d%%, Roll=%d", attacker.Name, target.Name, tripChance, attackChance, roll)
+
+						if roll < tripChance {
+							attacks = append(attacks, OpportunityAttack{
+								AttackerID: attacker.ID,
+								Type:       "trip",
+								Damage:     target.HP,
+							})
+						} else if roll < tripChance+attackChance {
+							damage := calculateDamage(attacker, target, game)
+							attacks = append(attacks, OpportunityAttack{
+								AttackerID: attacker.ID,
+								Type:       "attack",
+								Damage:     damage,
+							})
+						}
+					}
+				}
+			}
+		}
+	}
+	return attacks
+}
+
+func isInThreatZone(x, y, enemyX, enemyY int) bool {
+	return abs(x-enemyX) <= 1 && abs(y-enemyY) <= 1
+}

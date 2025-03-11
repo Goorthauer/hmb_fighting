@@ -87,13 +87,22 @@ export function updateCharacterCards(data) {
 
     let allChars = [];
     if (data.teams && Array.isArray(data.teams)) {
-        data.teams.forEach(team => {
-            team.characters.forEach(char => {
-                allChars.push(char);
+        if (data.phase === 'pick_team') {
+            // Только своя команда в фазе pick_team
+            const myTeam = data.teams[data.teamID];
+            if (myTeam && myTeam.characters) {
+                allChars = myTeam.characters;
+            }
+        } else {
+            // Все команды в других фазах
+            data.teams.forEach(team => {
+                team.characters.forEach(char => {
+                    allChars.push(char);
+                });
             });
-        });
+        }
     }
-    console.log(data)
+
     if (!roundStarted || turnOrder.length === 0) {
         if (loadTurnState(gameSessionId)) {
             console.log('Loaded turn state:', { turnOrder, previousTurn: previousState?.currentTurn });
@@ -109,6 +118,8 @@ export function updateCharacterCards(data) {
     let charsToShow = allChars;
     if (data.phase === 'setup') {
         charsToShow = allChars.filter(char => char.team === myTeam && char.position[0] === -1);
+    } else if (data.phase === 'pick_team') {
+        charsToShow = allChars; // Уже отфильтрованы выше
     }
 
     renderCards(characterCards, charsToShow, data, allChars);
@@ -199,61 +210,90 @@ export function updateAbilityCards(myTeam, data) {
     abilityCards.innerHTML = '';
 
     const currentChar = findCharacter(data.teams, data.currentTurn);
-    if (currentChar) {
-        if (currentChar.abilities?.length) {
-            currentChar.abilities.forEach((abilityID) => {
-                const ability = data.abilitiesConfig[abilityID];
-                if (!ability) {
-                    console.warn(`Ability with ID ${abilityID} not found in AbilitiesConfig`);
-                    return;
-                }
-
-                const card = document.createElement('div');
-                card.classList.add('ability-card');
-                if (selectedAbility && selectedAbility.name === ability.name) card.classList.add('selected');
-
-                if (currentChar.team !== myTeam) {
-                    card.classList.add('locked');
-                }
-
-                card.innerHTML = `
-                    <div class="image" style="background-image: url('${ability.imageURL}');"></div>
-                    <div class="info">
-                        <strong>${ability.display_name}</strong><br>
-                        ${ability.description || 'No description'}
-                    </div>
-                `;
-
-                if (currentChar.team === myTeam) {
-                    card.addEventListener('click', () => {
-                        setSelectedAbility(ability);
-                        updateAbilityCards(myTeam, data);
-                    });
-                }
-
-                abilityCards.appendChild(card);
-            });
-
-            const stack = document.createElement('div');
-            stack.classList.add('no-abilities-stack');
-            for (let i = 0; i < 3; i++) {
-                const card = document.createElement('div');
-                card.classList.add('no-abilities-card');
-                card.innerHTML = `<div class="image"></div>`;
-                stack.appendChild(card);
-            }
-            abilityCards.appendChild(stack);
-        } else {
-            const stack = document.createElement('div');
-            stack.classList.add('no-abilities-stack');
-            for (let i = 0; i < 3; i++) {
-                const card = document.createElement('div');
-                card.classList.add('no-abilities-card');
-                card.innerHTML = `<div class="image"></div>`;
-                stack.appendChild(card);
-            }
-            abilityCards.appendChild(stack);
+    if (!currentChar) {
+        console.warn('No current character found for ability cards, phase:', data.phase);
+        // Отображаем пустой стек, если персонаж не найден
+        const stack = document.createElement('div');
+        stack.classList.add('no-abilities-stack');
+        for (let i = 0; i < 3; i++) {
+            const card = document.createElement('div');
+            card.classList.add('no-abilities-card');
+            card.innerHTML = `<div class="image"></div>`;
+            stack.appendChild(card);
         }
+        abilityCards.appendChild(stack);
+        isUpdatingAbilities = false;
+        return;
+    }
+
+    // Если фаза pick_team, проверяем, что персонаж из вашей команды
+    if (data.phase === 'pick_team' && currentChar.team !== myTeam) {
+        const stack = document.createElement('div');
+        stack.classList.add('no-abilities-stack');
+        for (let i = 0; i < 3; i++) {
+            const card = document.createElement('div');
+            card.classList.add('no-abilities-card');
+            card.innerHTML = `<div class="image"></div>`;
+            stack.appendChild(card);
+        }
+        abilityCards.appendChild(stack);
+        isUpdatingAbilities = false;
+        return;
+    }
+
+    if (currentChar.abilities?.length) {
+        currentChar.abilities.forEach((abilityID) => {
+            const ability = data.abilitiesConfig[abilityID];
+            if (!ability) {
+                console.warn(`Ability with ID ${abilityID} not found in AbilitiesConfig`);
+                return;
+            }
+
+            const card = document.createElement('div');
+            card.classList.add('ability-card');
+            if (selectedAbility && selectedAbility.name === ability.name) card.classList.add('selected');
+
+            if (currentChar.team !== myTeam) {
+                card.classList.add('locked');
+            }
+
+            card.innerHTML = `
+                <div class="image" style="background-image: url('${ability.imageURL}');"></div>
+                <div class="info">
+                    <strong>${ability.display_name}</strong><br>
+                    ${ability.description || 'No description'}
+                </div>
+            `;
+
+            if (currentChar.team === myTeam) {
+                card.addEventListener('click', () => {
+                    setSelectedAbility(ability);
+                    updateAbilityCards(myTeam, data);
+                });
+            }
+
+            abilityCards.appendChild(card);
+        });
+
+        const stack = document.createElement('div');
+        stack.classList.add('no-abilities-stack');
+        for (let i = 0; i < 3; i++) {
+            const card = document.createElement('div');
+            card.classList.add('no-abilities-card');
+            card.innerHTML = `<div class="image"></div>`;
+            stack.appendChild(card);
+        }
+        abilityCards.appendChild(stack);
+    } else {
+        const stack = document.createElement('div');
+        stack.classList.add('no-abilities-stack');
+        for (let i = 0; i < 3; i++) {
+            const card = document.createElement('div');
+            card.classList.add('no-abilities-card');
+            card.innerHTML = `<div class="image"></div>`;
+            stack.appendChild(card);
+        }
+        abilityCards.appendChild(stack);
     }
     isUpdatingAbilities = false;
 }
@@ -314,6 +354,10 @@ export function updateTurnHeader(myTeam, data) {
         }
     } else if (data.phase === 'setup') {
         turnHeader.textContent = 'РАССТАНОВКА';
+        turnHeader.style.color = '#ffffff';
+        turnHeader.style.textShadow = '0 0 10px rgba(255, 255, 255, 0.7)';
+    } else if (data.phase === 'pick_team') {
+        turnHeader.textContent = 'Противник еще выбирает команду';
         turnHeader.style.color = '#ffffff';
         turnHeader.style.textShadow = '0 0 10px rgba(255, 255, 255, 0.7)';
     }

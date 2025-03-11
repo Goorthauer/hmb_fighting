@@ -220,13 +220,29 @@ export function drawBoard(data) {
     clearCanvas();
     drawGrid();
 
-    if (data.phase === 'setup') {
-        drawSetupZones(data);
-    }
-
     if (!data || !data.teams || !Array.isArray(data.teams) || !data.board || !data.teamsConfig) {
         console.error('Invalid data in drawBoard:', data);
         return;
+    }
+
+    // Если фаза pick_team, рисуем только свою команду
+    if (data.phase === 'pick_team') {
+        drawSetupZones(data); // Зоны для своей команды
+        const myTeam = data.teams[data.teamID];
+        if (myTeam && myTeam.characters) {
+            myTeam.characters.forEach(char => {
+                if (char.position[0] !== -1 && char.position[1] !== -1) {
+                    drawCharacter(char, char.position[0], char.position[1], char.id === data.currentTurn);
+                }
+            });
+        }
+        drawDraggingCharacter(data);
+        return; // Выходим, чтобы не рисовать остальное
+    }
+
+    // Логика для других фаз (setup, move, action)
+    if (data.phase === 'setup') {
+        drawSetupZones(data);
     }
 
     const currentChar = findCharacter(data.teams, data.currentTurn);
@@ -297,4 +313,56 @@ export function animateMove(character, path, callback, isAttack = false) {
     }
 
     requestAnimationFrame(animate);
+}
+
+
+// В начало файла добавьте массив частиц
+let particles = [];
+
+function createParticle(x, y) {
+    return {
+        x: x,
+        y: y,
+        vx: (Math.random() - 0.5) * 8,
+        vy: (Math.random() - 0.5) * 8,
+        size: Math.random() * 10 + 5,
+        life: Math.random() * 30 + 20,
+        color: `hsl(${Math.random() * 360}, 100%, 50%)`
+    };
+}
+
+export function showGameOverEffects() {
+    // Создаём частицы по всему полю
+    for (let i = 0; i < 50; i++) {
+        particles.push(createParticle(Math.random() * ctx.canvas.width, Math.random() * ctx.canvas.height));
+    }
+
+    function animateParticles() {
+        clearCanvas();
+        drawGrid();
+        drawCharacters(gameState); // Оставляем поле видимым
+
+        particles.forEach((p, index) => {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.life -= 1;
+            p.size *= 0.95;
+
+            if (p.life <= 0) {
+                particles.splice(index, 1);
+                return;
+            }
+
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fillStyle = p.color;
+            ctx.fill();
+        });
+
+        if (particles.length > 0) {
+            requestAnimationFrame(animateParticles);
+        }
+    }
+
+    animateParticles();
 }
