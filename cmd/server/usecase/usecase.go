@@ -8,6 +8,7 @@ import (
 	"hmb_fighting/cmd/server/game"
 	"hmb_fighting/cmd/server/jwt"
 	"hmb_fighting/cmd/server/types"
+	"hmb_fighting/cmd/server/utils"
 	"log"
 	"math/rand"
 	"strings"
@@ -34,10 +35,46 @@ func (u *Usecase) RegisterUser(currentUser types.User) (*dtos.RegisterUserResp, 
 		return nil, fmt.Errorf("Failed to get user: %v", err)
 	}
 
-	if user.Email == "" {
-		user = currentUser
-		user.ID = generateClientID()
+	if user.Email != "" {
+		return nil, fmt.Errorf("User exist")
 	}
+
+	user = currentUser
+	hashPass, err := utils.HashPassword(user.Password)
+	if err != nil {
+		return nil, fmt.Errorf("Failed hash password: %v", err)
+	}
+	user.Password = hashPass
+	user.ID = generateClientID()
+
+	tokenPair, err := jwt.GenerateTokenPair(user, "spectator")
+	if err != nil {
+		return nil, fmt.Errorf("Failed to generate tokens: %v", err)
+	}
+
+	err = u.db.SetUser(tokenPair.RefreshToken, user)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to save user with refresh token: %v", err)
+	}
+
+	return &dtos.RegisterUserResp{
+		AccessToken:  tokenPair.AccessToken,
+		RefreshToken: tokenPair.RefreshToken,
+		ClientID:     user.ID,
+	}, nil
+}
+
+func (u *Usecase) LoginUser(email, password string) (*dtos.RegisterUserResp, error) {
+	user, err := u.db.GetUserByEmail(email)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get user: %v", err)
+	}
+
+	if user.Email == "" {
+		return nil, fmt.Errorf("user not exist")
+	}
+
+	utils.CheckPasswordHash(password, user.Password)
 
 	tokenPair, err := jwt.GenerateTokenPair(user, "spectator")
 	if err != nil {

@@ -7,13 +7,31 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<!-- Экран логина -->
-<div class="registration-container" id="login-container">
-    <div id="login-form">
-        <h2>Login</h2>
-        <input type="text" id="name" placeholder="Name" required>
-        <input type="email" id="email" placeholder="Email" required>
-        <button onclick="login()">Login</button>
+<!-- Экран логина и регистрации -->
+<div class="registration-container" id="auth-container">
+    <div class="auth-form">
+        <!-- Переключатель между логином и регистрацией -->
+        <div class="auth-switcher">
+            <button class="auth-tab active" onclick="switchAuthTab('login')">Login</button>
+            <button class="auth-tab" onclick="switchAuthTab('register')">Register</button>
+        </div>
+
+        <!-- Форма логина -->
+        <div id="login-form">
+            <h2>Login</h2>
+            <input type="email" id="login-email" placeholder="Email" required>
+            <input type="password" id="login-password" placeholder="Password" required>
+            <button onclick="login()">Login</button>
+        </div>
+
+        <!-- Форма регистрации -->
+        <div id="register-form" class="hidden">
+            <h2>Register</h2>
+            <input type="text" id="register-name" placeholder="Name" required>
+            <input type="email" id="register-email" placeholder="Email" required>
+            <input type="password" id="register-password" placeholder="Password" required>
+            <button onclick="register()">Register</button>
+        </div>
     </div>
 </div>
 
@@ -24,14 +42,13 @@
         <input type="text" id="room-id" placeholder="Enter Room ID">
         <button onclick="joinRoom()">Join Room</button>
         <button onclick="createRoom()">Create New Room</button>
-        <!-- Добавляем секцию для отображения ID комнаты -->
         <div id="room-id-display" class="hidden">
             <p>Your Room ID: <span id="created-room-id"></span></p>
             <button onclick="copyRoomId()">Copy Room ID</button>
         </div>
     </div>
 </div>
-<!-- Экран выбора команды -->
+
 <!-- Экран выбора команды -->
 <div class="registration-container hidden" id="team-selection">
     <div id="team-form" class="team-selection-container">
@@ -40,14 +57,34 @@
         <button id="confirm-team-btn" onclick="confirmTeamSelection()" disabled>Confirm Selection</button>
     </div>
 </div>
+
 <script>
+    function switchAuthTab(tab) {
+        const loginForm = document.getElementById('login-form');
+        const registerForm = document.getElementById('register-form');
+        const loginTab = document.querySelector('.auth-tab[onclick*="login"]');
+        const registerTab = document.querySelector('.auth-tab[onclick*="register"]');
+
+        if (tab === 'login') {
+            loginForm.classList.remove('hidden');
+            registerForm.classList.add('hidden');
+            loginTab.classList.add('active');
+            registerTab.classList.remove('active');
+        } else {
+            loginForm.classList.add('hidden');
+            registerForm.classList.remove('hidden');
+            loginTab.classList.remove('active');
+            registerTab.classList.add('active');
+        }
+    }
+
     function checkAuth() {
         const accessToken = localStorage.getItem('accessToken');
         const clientID = localStorage.getItem('clientID');
         console.log('Checking auth:', {accessToken, clientID});
         if (accessToken && clientID) {
             console.log('User authenticated, showing room selection');
-            document.getElementById('login-container').classList.add('hidden');
+            document.getElementById('auth-container').classList.add('hidden');
             document.getElementById('room-selection').classList.remove('hidden');
         } else {
             console.log('No auth found, staying on login screen');
@@ -56,20 +93,75 @@
 
     checkAuth();
 
-    function login() {
-        const name = document.getElementById('name').value;
-        const email = document.getElementById('email').value;
+    function register() {
+        const name = document.getElementById('register-name').value;
+        const email = document.getElementById('register-email').value;
+        const password = document.getElementById('register-password').value;
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+        if (!name || !email || !password) {
+            alert('Please fill in all fields');
+            return;
+        }
+        if (!emailRegex.test(email)) {
+            alert('Please enter a valid email address');
+            return;
+        }
+        if (password.length < 6) {
+            alert('Password must be at least 6 characters long');
+            return;
+        }
+
+        console.log('Sending register request:', {name, email, password});
+        fetch('http://localhost:8080/register', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name, email, password})
+        })
+            .then(response => {
+                console.log('Response received:', response);
+                if (!response.ok) throw new Error('Registration failed: ' + response.statusText);
+                return response.json();
+            })
+            .then(data => {
+                console.log('Register data:', data);
+                localStorage.setItem('accessToken', data.accessToken);
+                localStorage.setItem('refreshToken', data.refreshToken);
+                localStorage.setItem('clientID', data.clientID);
+                console.log('Stored in localStorage:', {
+                    accessToken: data.accessToken,
+                    refreshToken: data.refreshToken,
+                    clientID: data.clientID
+                });
+                document.getElementById('auth-container').classList.add('hidden');
+                document.getElementById('room-selection').classList.remove('hidden');
+                console.log('Switched to room selection');
+            })
+            .catch(err => {
+                console.error('Registration failed:', err);
+                alert('Registration failed. Please try again.');
+            });
+    }
+
+    function login() {
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+        if (!email || !password) {
+            alert('Please fill in all fields');
+            return;
+        }
         if (!emailRegex.test(email)) {
             alert('Please enter a valid email address');
             return;
         }
 
-        console.log('Sending login request:', {name, email});
-        fetch('http://localhost:8080/register', {
+        console.log('Sending login request:', {email, password});
+        fetch('http://localhost:8080/login', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({name, email})
+            body: JSON.stringify({email, password})
         })
             .then(response => {
                 console.log('Response received:', response);
@@ -86,13 +178,13 @@
                     refreshToken: data.refreshToken,
                     clientID: data.clientID
                 });
-                document.getElementById('login-container').classList.add('hidden');
+                document.getElementById('auth-container').classList.add('hidden');
                 document.getElementById('room-selection').classList.remove('hidden');
                 console.log('Switched to room selection');
             })
             .catch(err => {
                 console.error('Login failed:', err);
-                alert('Login failed. Please try again.');
+                alert('Login failed. Please check your credentials and try again.');
             });
     }
 
@@ -100,7 +192,7 @@
         const accessToken = localStorage.getItem('accessToken');
         if (!accessToken) {
             console.error('No access token found, redirecting to login');
-            window.location.href = 'login.html';
+            window.location.href = 'index.html';
             return;
         }
 
@@ -114,7 +206,7 @@
                 if (!response.ok) {
                     return response.text().then(text => {
                         if (response.status === 401) {
-                            localStorage.clear(); // Полная очистка
+                            localStorage.clear();
                             window.location.href = '/index.html';
                         }
                         throw new Error(`Server responded with ${response.status}: ${text}`);
@@ -125,12 +217,10 @@
             .then(data => {
                 console.log('Room created:', data.roomID);
                 localStorage.setItem('currentRoom', data.roomID);
-                // Отображаем ID комнаты
                 const roomIdDisplay = document.getElementById('room-id-display');
                 const createdRoomId = document.getElementById('created-room-id');
                 createdRoomId.textContent = data.roomID;
                 roomIdDisplay.classList.remove('hidden');
-                // Не перенаправляем сразу, чтобы пользователь мог скопировать ID
             })
             .catch(err => {
                 console.error('Room creation failed:', err);
@@ -158,37 +248,32 @@
                 const confirmBtn = document.getElementById('confirm-team-btn');
                 availableTeamsDiv.innerHTML = '';
 
-                // Проходим по всем доступным командам
                 for (const [teamID, teamConfig] of Object.entries(data.availableTeams)) {
                     const teamDiv = document.createElement('div');
                     teamDiv.className = 'team-card';
                     teamDiv.dataset.teamID = teamID;
 
-                    // Создаем контейнер для персонажей
                     const charactersDiv = document.createElement('div');
                     charactersDiv.className = 'characters';
 
-                    // Получаем персонажей для этой команды из data.characters
                     const teamCharacters = data.characters[teamID] || [];
                     teamCharacters.forEach(char => {
                         const charDiv = document.createElement('div');
                         charDiv.className = 'character-preview';
                         charDiv.innerHTML = `
-                        <div class="image" style="background-image: url('${char.imageURL || './static/characters/default.png'}');"></div>
-                        <div class="name">${char.name}</div>
-                    `;
+                            <div class="image" style="background-image: url('${char.imageURL || './static/characters/default.png'}');"></div>
+                            <div class="name">${char.name}</div>
+                        `;
                         charactersDiv.appendChild(charDiv);
                     });
 
-                    // Добавляем информацию о команде и персонажей
                     teamDiv.innerHTML = `
-                    <div class="team-icon" style="background-image: url('${teamConfig.iconURL}');"></div>
-                    <h3>${teamConfig.name}</h3>
-                    <p>${teamConfig.description}</p>
-                `;
+                        <div class="team-icon" style="background-image: url('${teamConfig.iconURL}');"></div>
+                        <h3>${teamConfig.name}</h3>
+                        <p>${teamConfig.description}</p>
+                    `;
                     teamDiv.appendChild(charactersDiv);
 
-                    // Обработчик выбора команды
                     teamDiv.addEventListener('click', () => {
                         if (selectedTeamID) {
                             const prevSelected = availableTeamsDiv.querySelector(`.team-card[data-team-id="${selectedTeamID}"]`);
@@ -219,7 +304,7 @@
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 roomID: roomID,
-                realTeamID: numericTeamID, // Здесь может быть логика для определения реальной команды
+                realTeamID: numericTeamID,
                 accessToken: accessToken
             })
         })
@@ -245,21 +330,20 @@
         }
     }
 
-    // Функция для отображения модального окна с ошибкой (оставим как в предыдущем примере)
     function showErrorModal(message, retryCallback) {
         const modal = document.createElement('div');
         modal.className = 'modal';
         modal.innerHTML = `
-        <div class="modal-content">
-            <span class="close">×</span>
-            <h2>Error</h2>
-            <p>${message}</p>
-            <div class="modal-buttons">
-                <button id="retry-btn">Retry</button>
-                <button id="close-btn">Close</button>
+            <div class="modal-content">
+                <span class="close">×</span>
+                <h2>Error</h2>
+                <p>${message}</p>
+                <div class="modal-buttons">
+                    <button id="retry-btn">Retry</button>
+                    <button id="close-btn">Close</button>
+                </div>
             </div>
-        </div>
-    `;
+        `;
         document.body.appendChild(modal);
 
         const closeBtn = modal.querySelector('.close');
@@ -280,29 +364,10 @@
         };
     }
 
-    function checkTeamSelection(roomID) {
-        const accessToken = localStorage.getItem('accessToken');
-        fetch('http://localhost:8080/check-teams', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({roomID: roomID, accessToken: accessToken})
-        })
-            .then(response => response.json())
-            .then(data => {
-                if (data.allTeamsSelected) {
-                    document.getElementById('team-selection').classList.add('hidden');
-                    document.getElementById('room-selection').classList.remove('hidden');
-                }
-            })
-            .catch(err => {
-                console.error('Failed to check team selection:', err);
-            });
-    }
-
     function copyRoomId() {
         const roomId = document.getElementById('created-room-id').textContent;
         navigator.clipboard.writeText(roomId)
-            .then(() => { // Убрали data
+            .then(() => {
                 console.log('Room ID copied:', roomId);
                 alert('Room ID copied! Now select your team.');
                 document.getElementById('room-id-display').classList.add('hidden');
@@ -316,7 +381,6 @@
             });
     }
 
-
     function joinRoom() {
         const roomID = document.getElementById('room-id').value.trim();
         if (!roomID) {
@@ -329,7 +393,6 @@
         document.getElementById('team-selection').classList.remove('hidden');
         loadAvailableTeams(roomID);
     }
-
 </script>
 </body>
 </html>

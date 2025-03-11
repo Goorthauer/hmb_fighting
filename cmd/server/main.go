@@ -29,6 +29,7 @@ func main() {
 
 	http.Handle("/ws", enableCORS(http.HandlerFunc(handler.HandleWebSocket)))
 	http.Handle("/register", enableCORS(http.HandlerFunc(handler.HandleRegister)))
+	http.Handle("/login", enableCORS(http.HandlerFunc(handler.HandleLogin)))
 	http.Handle("/refresh", enableCORS(http.HandlerFunc(handler.HandleRefresh)))
 	http.Handle("/check-client", enableCORS(http.HandlerFunc(handler.HandleCheckClient)))
 	http.Handle("/create-room", enableCORS(http.HandlerFunc(handler.HandleCreateRoom)))

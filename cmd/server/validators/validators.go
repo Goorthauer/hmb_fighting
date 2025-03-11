@@ -3,11 +3,35 @@ package validators
 import (
 	"errors"
 	"hmb_fighting/cmd/server/types"
+	"regexp"
 )
 
 func ValidateRegisterInput(user types.User) error {
-	if user.Name == "" || user.Email == "" {
-		return errors.New("Name and email are required")
+	if user.Name == "" {
+		return errors.New("name is required")
+	}
+	if user.Email == "" {
+		return errors.New("email is required")
+	}
+	if user.Password == "" {
+		return errors.New("password is required")
+	}
+
+	emailRegex := regexp.MustCompile(`^[^\s@]+@[^\s@]+\.[^\s@]+$`)
+	if !emailRegex.MatchString(user.Email) {
+		return errors.New("invalid email format")
+	}
+
+	if len(user.Password) < 6 {
+		return errors.New("password must be at least 6 characters long")
+	}
+
+	return nil
+}
+
+func ValidateLoginInput(email, password string) error {
+	if password == "" || email == "" {
+		return errors.New("password and email are required")
 	}
 	return nil
 }

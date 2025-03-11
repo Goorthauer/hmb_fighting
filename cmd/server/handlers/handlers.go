@@ -48,6 +48,30 @@ func (h *Handler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Registered user: %s (%s) with ClientID: %s", currentUser.Name, currentUser.Email, response.ClientID)
 }
 
+func (h *Handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	if err := validators.ValidateLoginInput(req.Email, req.Password); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	response, err := h.usecase.LoginUser(req.Email, req.Password)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
 func (h *Handler) HandleRefresh(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		RefreshToken string `json:"refreshToken"`

@@ -7,9 +7,10 @@ import (
 )
 
 type User struct {
-	ID    string `json:"ID"`
-	Name  string `json:"name"`
-	Email string `json:"email"`
+	ID       string `json:"ID"`
+	Name     string `json:"name"`
+	Password string `json:"password"`
+	Email    string `json:"email"`
 }
 
 type Weapon struct {
