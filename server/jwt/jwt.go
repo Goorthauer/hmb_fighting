@@ -2,7 +2,7 @@ package jwt
 
 import (
 	"fmt"
-	"hmb_fighting/cmd/server/types"
+	"hmb_fighting/server/types"
 	"time"
 
 	jwt "github.com/golang-jwt/jwt/v5"

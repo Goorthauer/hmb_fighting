@@ -1,8 +1,8 @@
 package game
 
 import (
-	"hmb_fighting/cmd/server/db"
-	"hmb_fighting/cmd/server/types"
+	"hmb_fighting/server/db"
+	"hmb_fighting/server/types"
 	"log"
 
 	"github.com/google/uuid"

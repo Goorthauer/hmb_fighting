@@ -2,9 +2,9 @@ package handlers
 
 import (
 	"encoding/json"
-	"hmb_fighting/cmd/server/types"
-	"hmb_fighting/cmd/server/usecase"
-	"hmb_fighting/cmd/server/validators"
+	"hmb_fighting/server/types"
+	"hmb_fighting/server/usecase"
+	"hmb_fighting/server/validators"
 	"log"
 	"net/http"
 

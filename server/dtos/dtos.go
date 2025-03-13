@@ -1,6 +1,6 @@
 package dtos
 
-import "hmb_fighting/cmd/server/types"
+import "hmb_fighting/server/types"
 
 type RegisterUserResp struct {
 	AccessToken  string `json:"accessToken"`

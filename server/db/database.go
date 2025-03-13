@@ -1,6 +1,6 @@
 package db
 
-import "hmb_fighting/cmd/server/types"
+import "hmb_fighting/server/types"
 
 type Database interface {
 	GetWeapons() (map[string]types.Weapon, error)

@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"hmb_fighting/cmd/server/types"
+	"hmb_fighting/server/types"
+	"log"
+	"os"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -18,24 +20,43 @@ type PostgresDatabase struct {
 	baseTTL time.Duration
 }
 
-func NewPostgresDatabase(connStr string, redisAddr string) (*PostgresDatabase, error) {
+func NewPostgresDatabase() (*PostgresDatabase, error) {
 	baseTTL := time.Hour * 24
+
 	// Подключение к PostgreSQL
-	db, err := sql.Open("postgres", connStr)
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		log.Fatal("DATABASE_URL is not set")
+	}
+
+	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %v", err)
 	}
-	if err = db.Ping(); err != nil {
+
+	// Проверка подключения
+	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("failed to ping database: %v", err)
 	}
+	log.Println("Connected to PostgreSQL successfully")
 
 	// Подключение к Redis
-	redisClient := redis.NewClient(&redis.Options{
-		Addr: redisAddr, // например, "localhost:6379"
-	})
-	if _, err := redisClient.Ping(context.Background()).Result(); err != nil {
-		return nil, fmt.Errorf("failed to connect to redis: %v", err)
+	redisURL := os.Getenv("REDIS_URL")
+	if redisURL == "" {
+		log.Fatal("REDIS_URL is not set")
 	}
+	redisOpts, err := redis.ParseURL(redisURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse REDIS_URL: %v", err)
+	}
+	redisClient := redis.NewClient(redisOpts)
+
+	// Проверка подключения к Redis
+	ctx := context.Background()
+	if err := redisClient.Ping(ctx).Err(); err != nil {
+		return nil, fmt.Errorf("failed to ping Redis: %v", err)
+	}
+	log.Println("Connected to Redis successfully")
 
 	return &PostgresDatabase{
 		db:      db,
@@ -99,8 +120,7 @@ func (p *PostgresDatabase) GetWeapons() (map[string]types.Weapon, error) {
 	}
 
 	if err := p.cacheSet(ctx, cacheKey, weapons, p.baseTTL); err != nil {
-		// Ошибка кеширования не критична, просто логируем (или игнорируем)
-		fmt.Printf("failed to cache weapons: %v\n", err)
+		log.Printf("failed to cache weapons: %v", err)
 	}
 
 	return weapons, nil
@@ -135,7 +155,7 @@ func (p *PostgresDatabase) GetShields() (map[string]types.Shield, error) {
 	}
 
 	if err := p.cacheSet(ctx, cacheKey, shields, p.baseTTL); err != nil {
-		fmt.Printf("failed to cache shields: %v\n", err)
+		log.Printf("failed to cache shields: %v", err)
 	}
 
 	return shields, nil
@@ -170,7 +190,7 @@ func (p *PostgresDatabase) GetTeams() (map[int]types.TeamConfig, error) {
 	}
 
 	if err := p.cacheSet(ctx, cacheKey, teams, p.baseTTL); err != nil {
-		fmt.Printf("failed to cache teams: %v\n", err)
+		log.Printf("failed to cache teams: %v", err)
 	}
 
 	return teams, nil
@@ -208,7 +228,7 @@ func (p *PostgresDatabase) GetCharacters() ([]types.Character, error) {
 	}
 
 	if err := p.cacheSet(ctx, cacheKey, characters, p.baseTTL); err != nil {
-		fmt.Printf("failed to cache characters: %v\n", err)
+		log.Printf("failed to cache characters: %v", err)
 	}
 
 	return characters, nil
@@ -243,7 +263,7 @@ func (p *PostgresDatabase) GetAbilities() (map[string]types.Ability, error) {
 	}
 
 	if err := p.cacheSet(ctx, cacheKey, abilities, p.baseTTL); err != nil {
-		fmt.Printf("failed to cache abilities: %v\n", err)
+		log.Printf("failed to cache abilities: %v", err)
 	}
 
 	return abilities, nil
@@ -278,7 +298,7 @@ func (p *PostgresDatabase) GetRoleConfig() (map[string]types.Role, error) {
 	}
 
 	if err := p.cacheSet(ctx, cacheKey, roles, p.baseTTL); err != nil {
-		fmt.Printf("failed to cache role_config: %v\n", err)
+		log.Printf("failed to cache role_config: %v", err)
 	}
 
 	return roles, nil
@@ -321,12 +341,12 @@ func (p *PostgresDatabase) SetUser(refreshToken string, user types.User) error {
 	// Инвалидируем кеш для пользователя по email и refresh token
 	emailCacheKey := fmt.Sprintf("user:email:%s", user.Email)
 	if err := p.cacheDel(ctx, emailCacheKey); err != nil {
-		fmt.Printf("failed to invalidate cache for user by email %s: %v\n", user.Email, err)
+		log.Printf("failed to invalidate cache for user by email %s: %v", user.Email, err)
 	}
 	if refreshToken != "" {
 		tokenCacheKey := fmt.Sprintf("user:refresh:%s", refreshToken)
 		if err := p.cacheDel(ctx, tokenCacheKey); err != nil {
-			fmt.Printf("failed to invalidate cache for user by refresh %s: %v\n", refreshToken, err)
+			log.Printf("failed to invalidate cache for user by refresh %s: %v", refreshToken, err)
 		}
 	}
 
@@ -356,7 +376,7 @@ func (p *PostgresDatabase) GetUserByEmail(email string) (types.User, error) {
 	}
 
 	if err := p.cacheSet(ctx, cacheKey, user, p.baseTTL); err != nil {
-		fmt.Printf("failed to cache user by email %s: %v\n", email, err)
+		log.Printf("failed to cache user by email %s: %v", email, err)
 	}
 
 	return user, nil
@@ -386,7 +406,7 @@ func (p *PostgresDatabase) GetUserByRefresh(token string) (types.User, error) {
 	}
 
 	if err := p.cacheSet(ctx, cacheKey, user, p.baseTTL); err != nil {
-		fmt.Printf("failed to cache user by refresh %s: %v\n", token, err)
+		log.Printf("failed to cache user by refresh %s: %v", token, err)
 	}
 
 	return user, nil
@@ -402,7 +422,7 @@ func (p *PostgresDatabase) GetRoom(roomID string) (*types.Game, error) {
 		return &game, nil
 	}
 
-	// Логика получения из базы (без изменений до конца метода)
+	// Логика получения из базы
 	var boardJSON []byte
 	err := p.db.QueryRow(`
 		SELECT game_session_id, current_turn, phase, board, winner
@@ -469,7 +489,7 @@ func (p *PostgresDatabase) GetRoom(roomID string) (*types.Game, error) {
 	game.TeamsConfig, _ = p.GetTeams()
 
 	if err := p.cacheSet(ctx, cacheKey, game, 3*time.Minute); err != nil {
-		fmt.Printf("failed to cache room %s: %v\n", roomID, err)
+		log.Printf("failed to cache room %s: %v", roomID, err)
 	}
 
 	return &game, nil
@@ -479,7 +499,7 @@ func (p *PostgresDatabase) SetRoom(game *types.Game) error {
 	ctx := context.Background()
 	cacheKey := fmt.Sprintf("room:%s", game.GameSessionId)
 
-	// Логика записи в базу (без изменений)
+	// Логика записи в базу
 	tx, err := p.db.Begin()
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %v", err)
@@ -540,7 +560,7 @@ func (p *PostgresDatabase) SetRoom(game *types.Game) error {
 
 	// Инвалидируем кеш после обновления
 	if err := p.cacheDel(ctx, cacheKey); err != nil {
-		fmt.Printf("failed to invalidate cache for room %s: %v\n", game.GameSessionId, err)
+		log.Printf("failed to invalidate cache for room %s: %v", game.GameSessionId, err)
 	}
 
 	return nil

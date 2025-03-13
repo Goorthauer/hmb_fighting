@@ -2,7 +2,7 @@ package validators
 
 import (
 	"errors"
-	"hmb_fighting/cmd/server/types"
+	"hmb_fighting/server/types"
 	"regexp"
 )
 

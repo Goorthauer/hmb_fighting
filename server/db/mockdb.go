@@ -1,7 +1,7 @@
 package db
 
 import (
-	"hmb_fighting/cmd/server/types"
+	"hmb_fighting/server/types"
 	"sync"
 )
 

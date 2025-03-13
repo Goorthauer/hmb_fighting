@@ -1,191 +1,4 @@
-CREATE TABLE users (
-                       id VARCHAR(50) PRIMARY KEY,
-                       name VARCHAR(100) NOT NULL,
-                       email VARCHAR(255) UNIQUE NOT NULL,
-                       password VARCHAR(255) NOT NULL
-);
-
-CREATE TABLE refresh_tokens (
-                                token VARCHAR(255) PRIMARY KEY,
-                                user_id VARCHAR(50) NOT NULL,
-                                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_refresh_tokens_user_id ON refresh_tokens(user_id);
-
-
-
-CREATE TABLE weapons (
-                         name VARCHAR(50) PRIMARY KEY,
-                         display_name VARCHAR(100) NOT NULL,
-                         range INT NOT NULL,
-                         is_two_handed BOOLEAN NOT NULL,
-                         image_url VARCHAR(255),
-                         attack_bonus INT NOT NULL,
-                         grapple_bonus INT NOT NULL
-);
-
-CREATE TABLE shields (
-                         name VARCHAR(50) PRIMARY KEY,
-                         display_name VARCHAR(100) NOT NULL,
-                         defense_bonus INT NOT NULL,
-                         image_url VARCHAR(255),
-                         attack_bonus INT NOT NULL,
-                         grapple_bonus INT NOT NULL
-);
-
-CREATE TABLE teams (
-                              id INT PRIMARY KEY,
-                              name VARCHAR(100) NOT NULL,
-                              icon_url VARCHAR(255),
-                              description TEXT
-);
-
-CREATE TABLE roles (
-                       id VARCHAR(10) PRIMARY KEY,
-                       name VARCHAR(50) NOT NULL
-);
-
-
-CREATE TABLE characters (
-                            id INT PRIMARY KEY,
-                            name VARCHAR(100) NOT NULL,
-                            team_id INT NOT NULL,
-                            role_id VARCHAR(10) NOT NULL,
-                            count_of_ability INT NOT NULL,
-                            image_url VARCHAR(255),
-                            is_active BOOLEAN NOT NULL DEFAULT TRUE,
-                            weapon VARCHAR(50),
-                            shield VARCHAR(50),
-                            is_titan_armour BOOLEAN NOT NULL DEFAULT FALSE,
-                            height INT NOT NULL,
-                            weight INT NOT NULL,
-                            hp INT NOT NULL,
-                            stamina INT NOT NULL,
-                            initiative INT NOT NULL,
-                            wrestling INT NOT NULL,
-                            attack INT NOT NULL,
-                            defense INT NOT NULL,
-                            attack_min INT NOT NULL,
-                            attack_max INT NOT NULL,
-                            FOREIGN KEY (team_id) REFERENCES teams(id),
-                            FOREIGN KEY (role_id) REFERENCES roles(id),
-                            FOREIGN KEY (weapon) REFERENCES weapons(name),
-                            FOREIGN KEY (shield) REFERENCES shields(name)
-);
-
-CREATE INDEX idx_characters_team_id ON characters(team_id);
-CREATE INDEX idx_characters_role_id ON characters(role_id);
-
-CREATE TABLE abilities (
-                           name VARCHAR(50) PRIMARY KEY,
-                           display_name VARCHAR(100) NOT NULL,
-                           type VARCHAR(50) NOT NULL,
-                           description TEXT,
-                           range INT NOT NULL,
-                           image_url VARCHAR(255)
-);
-
-CREATE TABLE rooms (
-                       game_session_id VARCHAR(50) PRIMARY KEY,
-                       current_turn INT NOT NULL DEFAULT 0,
-                       phase VARCHAR(50) NOT NULL,
-                       board JSONB NOT NULL, -- [16][9]int как JSON
-                       winner INT NOT NULL DEFAULT -1,
-                       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE room_teams (
-                            game_session_id VARCHAR(50),
-                            team_id INT,
-                            characters JSONB NOT NULL, -- []Character как JSON
-                            PRIMARY KEY (game_session_id, team_id),
-                            FOREIGN KEY (game_session_id) REFERENCES rooms(game_session_id) ON DELETE CASCADE,
-                            FOREIGN KEY (team_id) REFERENCES teams(id)
-);
-
-CREATE TABLE room_players (
-                              game_session_id VARCHAR(50),
-                              team_id INT,
-                              client_id VARCHAR(50),
-                              PRIMARY KEY (game_session_id, team_id),
-                              FOREIGN KEY (game_session_id) REFERENCES rooms(game_session_id) ON DELETE CASCADE
-);
-
-CREATE INDEX idx_room_teams_game_session_id ON room_teams(game_session_id);
-CREATE INDEX idx_room_players_game_session_id ON room_players(game_session_id);
-
-
-
---------- inserts ---------
-
-INSERT INTO weapons (name, display_name, range, is_two_handed, image_url, attack_bonus, grapple_bonus)
-VALUES
-    ('falchion', 'Фальшион', 1, FALSE, './static/weapons/default.png', 2, 0),
-    ('axe', 'Топор', 1, FALSE, './static/weapons/default.png', 0, 8),
-    ('two_handed_sword', 'Двуручный меч', 2, TRUE, './static/weapons/default.png', 2, 0),
-    ('two_handed_halberd', 'Алебарда', 2, TRUE, './static/weapons/default.png', 2, 8),
-    ('sword', 'Меч', 1, FALSE, './static/weapons/default.png', 0, 0)
-    ON CONFLICT (name) DO NOTHING;
-
-INSERT INTO shields (name, display_name, defense_bonus, image_url, attack_bonus, grapple_bonus)
-VALUES
-    ('buckler', 'Баклер', 1, './static/shields/default.png', 1, 1),
-    ('shield', 'Тарч', 2, './static/shields/default.png', 1, 0),
-    ('tower', 'Ростовой щит', 3, './static/shields/default.png', 0, -1)
-    ON CONFLICT (name) DO NOTHING;
-
-INSERT INTO abilities (name, display_name, type, description, range, image_url)
-VALUES
-    ('yama_arashi', 'Подхват', 'wrestle', 'Мощный бросок через бедро, использующий силу и импульс противника для стремительного падения.', 1, './static/abilities/default.jpg'),
-    ('trip', 'Зацеп', 'wrestle', 'Точный удар по ноге, нарушающий баланс противника и заставляющий его упасть.', 1, './static/abilities/default.jpg'),
-    ('hip_toss', 'Высед', 'wrestle', 'Бросок через бедро с использованием вращения и силы противника.', 1, './static/abilities/default.jpg'),
-    ('front_sweep', 'Передняя подножка', 'wrestle', 'Быстрый удар по передней ноге, опрокидывающий противника вперёд.', 1, './static/abilities/default.jpg'),
-    ('back_sweep', 'Задняя подножка', 'wrestle', 'Подсечка задней ноги, использующая вес противника для опрокидывания.', 1, './static/abilities/default.jpg'),
-    ('outer_hook', 'Внешний зацеп', 'wrestle', 'Подсечка внешней стороны ноги, нарушающая равновесие противника.', 1, './static/abilities/default.jpg'),
-    ('inner_hook', 'Внутренний зацеп', 'wrestle', 'Подсечка внутренней стороны ноги, выводящая противника из равновесия.', 1, './static/abilities/default.jpg'),
-    ('shoulder_throw', 'Бросок через плечо', 'wrestle', 'Рывок противника через плечо с использованием его импульса.', 1, './static/abilities/default.jpg'),
-    ('spinning_throw', 'Вращательный бросок', 'wrestle', 'Бросок противника через спину с использованием вращения.', 1, './static/abilities/default.jpg'),
-    ('double_leg', 'Двойной захват ног', 'wrestle', 'Захват обеих ног противника с последующим опрокидыванием.', 1, './static/abilities/default.jpg'),
-    ('single_leg', 'Одинарный захват ноги', 'wrestle', 'Захват одной ноги противника с последующим броском.', 1, './static/abilities/default.jpg'),
-    ('overhook_throw', 'Бросок через захват', 'wrestle', 'Бросок противника через верхний захват руки.', 1, './static/abilities/default.jpg'),
-    ('underhook_throw', 'Бросок через подхват', 'wrestle', 'Бросок противника через нижний захват руки.', 1, './static/abilities/default.jpg')
-    ON CONFLICT (name) DO NOTHING;
-
-INSERT INTO roles (id, name)
-VALUES
-    ('0', 'Танк'),
-    ('1', 'Убийца'),
-    ('2', 'Боец'),
-    ('3', 'Поддержка'),
-    ('4', 'Борец')
-    ON CONFLICT (id) DO NOTHING;
-
-
-INSERT INTO teams (id, name, icon_url, description)
-VALUES
-    (1, 'Партизан Два', './static/teams/partizan_dva.png', 'Вторая команда партизан, стойкие и выносливые бойцы.'),
-    (2, 'Юг', './static/teams/south.png', 'Команда южных земель, известная своей тактикой.'),
-    (3, 'НСК', './static/teams/nsk.png', 'Новосибирские бойцы, сильные и решительные.'),
-    (6, 'Старые Друзья', './static/teams/old_friends.png', 'Ветераны, проверенные временем.'),
-    (7, 'Черная Земля', './static/teams/black_land.png', 'Таинственные воины темных земель.'),
-    (11, 'Партизан', './static/teams/partizan.png', 'Первая команда партизан, мастера скрытности.'),
-    (12, 'Злой дух Ямбуя', './static/teams/yambuya_spirit.png', 'Мистические воины севера.'),
-    (16, 'Медвежья пядь', './static/teams/bear_span.png', 'Сильные, как медведи, бойцы.'),
-    (4, 'Школа ИСБ Байард', './static/teams/isb_bayard.png', 'Ученики школы боевых искусств Байард.'),
-    (5, 'НРБ', './static/teams/nrb.png', 'Непреклонные рыцари битвы.'),
-    (8, 'Vivus Ferro', './static/teams/vivus_ferro.png', 'Живые клинки, мастера оружия.'),
-    (9, 'Молодые львы', './static/teams/young_lions.png', 'Юные и амбициозные бойцы.'),
-    (10, 'Ганза', './static/teams/hansa.png', 'Союз торговцев и воинов.'),
-    (13, 'Мальтийский крест', './static/teams/maltese_cross.png', 'Рыцари ордена, верные клятве.'),
-    (14, 'Урфин Джус', './static/teams/urfin_jus.png', 'Команда загадочных мастеров.'),
-    (15, 'Высшая Школа ИСБ Санкт-Петербург', './static/teams/isb_spb.png', 'Элита школы боевых искусств СПб.'),
-    (17, 'Байард', './static/teams/bayard.png', 'Рыцари чести и доблести.'),
-    (18, 'RaubRitter', './static/teams/raubritter.png', 'Разбойные рыцари, мастера боя.'),
-    (19, 'Межевой рыцарь', './static/teams/border_knight.png', 'Стражи границ и традиций.')
-    ON CONFLICT (id) DO NOTHING;
-
+-- +goose Up
 INSERT INTO characters (id, name, team_id, role_id, count_of_ability, image_url, is_active, weapon, shield, is_titan_armour, height, weight, hp, stamina, initiative, wrestling, attack, defense, attack_min, attack_max)
 VALUES
     (15, 'Тюляков Алексей', 1, '3', 4, './static/characters/default.png', TRUE, 'two_handed_sword', NULL, FALSE, 177, 84, 100, 9, 11, 8, 12, 10, 12, 18),
@@ -284,7 +97,7 @@ VALUES
     (16, 'Ткачук Никита', 11, '4', 4, './static/characters/tkachuk_nikita.png', TRUE, 'falchion', 'buckler', TRUE, 180, 80, 100, 8, 11, 12, 12, 6, 12, 18),
     (19, 'Надеждин Александр', 11, '2', 4, './static/characters/nadejdin_sasha.png', TRUE, 'sword', 'shield', TRUE, 175, 80, 100, 8, 8, 10, 12, 10, 12, 18),
     (26, 'Кравченко Игорь', 11, '2', 4, './static/characters/default.png', TRUE, 'falchion', 'buckler', FALSE, 180, 85, 100, 8, 8, 10, 12, 10, 12, 18),
-    ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO characters (id, name, team_id, role_id, count_of_ability, image_url, is_active, weapon, shield, is_titan_armour, height, weight, hp, stamina, initiative, wrestling, attack, defense, attack_min, attack_max)
 VALUES
@@ -366,3 +179,7 @@ VALUES
     (175, 'Тищенко Алексей', 19, '2', 2, './static/characters/default.png', TRUE, 'falchion', NULL, FALSE, 179, 84, 100, 6, 6, 8, 10, 8, 10, 15),
     (176, 'Никитин Богдан', 19, '2', 2, './static/characters/default.png', TRUE, 'two_handed_sword', 'buckler', FALSE, 182, 88, 100, 8, 8, 10, 12, 10, 12, 18)
     ON CONFLICT (id) DO NOTHING;
+-- Добавь остальные записи из init.sql сюда по аналогии
+
+-- +goose Down
+TRUNCATE TABLE characters;

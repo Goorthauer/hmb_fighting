@@ -1,9 +1,9 @@
 package main
 
 import (
-	"hmb_fighting/cmd/server/db"
-	"hmb_fighting/cmd/server/handlers"
-	"hmb_fighting/cmd/server/usecase"
+	"hmb_fighting/server/db"
+	"hmb_fighting/server/handlers"
+	"hmb_fighting/server/usecase"
 	"log"
 	"net/http"
 
@@ -23,7 +23,10 @@ func enableCORS(next http.Handler) http.Handler {
 }
 
 func main() {
-	database := db.NewMockDatabase()
+	database, err := db.NewPostgresDatabase()
+	if err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
 	uc := usecase.NewUsecase(database)
 	handler := handlers.NewHandler(uc)
 
