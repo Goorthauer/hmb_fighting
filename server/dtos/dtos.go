@@ -1,6 +1,8 @@
 package dtos
 
-import "hmb_fighting/server/types"
+import (
+	"hmb_fighting/server/entities"
+)
 
 type RegisterUserResp struct {
 	AccessToken  string `json:"accessToken"`
@@ -9,6 +11,6 @@ type RegisterUserResp struct {
 }
 
 type SelectTeamResp struct {
-	AvailableTeams map[int]types.TeamConfig  `json:"availableTeams"`
-	Characters     map[int][]types.Character `json:"characters"`
+	AvailableTeams map[int]entities.TeamConfig  `json:"availableTeams"`
+	Characters     map[int][]entities.Character `json:"characters"`
 }

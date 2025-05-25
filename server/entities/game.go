@@ -1,13 +1,59 @@
-package types
+package entities
 
 import (
 	"fmt"
+	"hmb_fighting/server/types"
 	"log"
 	"math/rand"
+	"sync"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
-func (g *Game) FindCharacter(id int) *Character {
+type Room struct {
+	Connections     map[*websocket.Conn]*Client
+	Teams           map[int]Team   // Теперь map для гибкости
+	Players         map[int]string // teamID -> clientID (только 2 игрока)
+	CurrentTurn     int
+	Phase           types.PhaseTypes
+	Board           types.BoardTypes
+	GameSessionId   string
+	WeaponsConfig   map[string]Weapon
+	ShieldsConfig   map[string]Shield
+	AbilitiesConfig map[string]Ability
+	RoleConfig      map[string]Role
+	TeamsConfig     map[int]TeamConfig // Теперь map
+	Mutex           sync.Mutex
+	InitialOrder    []int
+	Battlelog       []Battlelog
+	Winner          int // ID команды-победителя, -1 если нет
+}
+
+type GameState struct {
+	Teams           [2]Team            `json:"teams"`
+	Winner          int                `json:"winner"`
+	CurrentTurn     int                `json:"currentTurn"`
+	Phase           types.PhaseTypes   `json:"phase"`
+	Board           types.BoardTypes   `json:"board"`
+	TeamID          int                `json:"teamID"`
+	ClientID        string             `json:"clientID"`
+	GameSessionId   string             `json:"gameSessionId"`
+	WeaponsConfig   map[string]Weapon  `json:"weaponsConfig"`
+	AbilitiesConfig map[string]Ability `json:"abilitiesConfig"`
+	ShieldsConfig   map[string]Shield  `json:"shieldsConfig"`
+	TeamsConfig     [2]TeamConfig      `json:"teamsConfig"`
+	Battlelog       []Battlelog        `json:"battlelog"`
+}
+
+func (g *Room) Finished() {
+	g.Phase = types.GamePhaseFinished
+	g.InitialOrder = []int{}
+	g.CurrentTurn = -1
+	g.SetBattleLog("Победа!")
+}
+
+func (g *Room) FindCharacter(id int) *Character {
 	for i := range g.Teams {
 		for j := range g.Teams[i].Characters {
 			if g.Teams[i].Characters[j].ID == id {
@@ -19,7 +65,7 @@ func (g *Game) FindCharacter(id int) *Character {
 }
 
 // A* для поиска пути на сервере с учётом атак в догонку
-func (g *Game) FindPath(startX, startY, endX, endY, stamina int, board [16][9]int, currentCharID int) (path [][2]int, opportunityAttacks []OpportunityAttack) {
+func (g *Room) FindPath(startX, startY, endX, endY, stamina int, board types.BoardTypes, currentCharID int) (path [][2]int, opportunityAttacks []OpportunityAttack) {
 	openList := make([]*Node, 0)
 	closedList := make(map[string]bool)
 	startNode := &Node{X: startX, Y: startY, G: 0, H: heuristic(startX, startY, endX, endY)}
@@ -51,7 +97,7 @@ func (g *Game) FindPath(startX, startY, endX, endY, stamina int, board [16][9]in
 			path = make([][2]int, 0)
 			node := current
 			for node != nil {
-				path = append([][2]int{[2]int{node.X, node.Y}}, path...)
+				path = append([][2]int{{node.X, node.Y}}, path...)
 				node = node.Parent
 			}
 			if len(path)-1 > stamina {
@@ -68,7 +114,7 @@ func (g *Game) FindPath(startX, startY, endX, endY, stamina int, board [16][9]in
 			newX := current.X + n[0]
 			newY := current.Y + n[1]
 
-			if newX < 0 || newX >= 16 || newY < 0 || newY >= 9 {
+			if newX < 0 || newX >= types.BoardVerticalSize || newY < 0 || newY >= types.BoardHorizontalSize {
 				continue
 			}
 			if board[newX][newY] != -1 && (newX != endX || newY != endY) {
@@ -93,21 +139,14 @@ func (g *Game) FindPath(startX, startY, endX, endY, stamina int, board [16][9]in
 	return nil, nil // Путь не найден
 }
 
-func heuristic(x1, y1, x2, y2 int) int {
-	return abs(x1-x2) + abs(y1-y2)
-}
-func isInThreatZone(x, y, enemyX, enemyY int) bool {
-	return abs(x-enemyX) <= 1 && abs(y-enemyY) <= 1
-}
-
 // Проверка атак в догонку
-func (g *Game) CheckOpportunityAttacks(target *Character, path [][2]int) []OpportunityAttack {
+func (g *Room) CheckOpportunityAttacks(target *Character, path [][2]int) []OpportunityAttack {
 	var attacks []OpportunityAttack
 	startX, startY := path[0][0], path[0][1]
 	endX, endY := path[len(path)-1][0], path[len(path)-1][1]
 
-	for i := 0; i < 16; i++ {
-		for j := 0; j < 9; j++ {
+	for i := 0; i < types.BoardVerticalSize; i++ {
+		for j := 0; j < types.BoardHorizontalSize; j++ {
 			if g.Board[i][j] != -1 {
 				attacker := g.FindCharacter(g.Board[i][j])
 				if attacker != nil && attacker.TeamID != target.TeamID && attacker.HP > 0 {
@@ -144,14 +183,14 @@ func (g *Game) CheckOpportunityAttacks(target *Character, path [][2]int) []Oppor
 						if roll < tripChance {
 							attacks = append(attacks, OpportunityAttack{
 								AttackerID: attacker.ID,
-								Type:       "trip",
+								Type:       types.OpportunityAttackTrip,
 								Damage:     target.HP,
 							})
 						} else if roll < tripChance+attackChance {
 							damage := g.CalculateDamage(attacker, target)
 							attacks = append(attacks, OpportunityAttack{
 								AttackerID: attacker.ID,
-								Type:       "attack",
+								Type:       types.OpportunityAttackAttack,
 								Damage:     damage,
 							})
 						}
@@ -163,35 +202,21 @@ func (g *Game) CheckOpportunityAttacks(target *Character, path [][2]int) []Oppor
 	return attacks
 }
 
-func (g *Game) DistanceToAbility(pos1, pos2 [2]int) int {
+func (g *Room) DistanceToAbility(pos1, pos2 [2]int) int {
 	dx := abs(pos1[0] - pos2[0])
 	dy := abs(pos1[1] - pos2[1])
-	dist := max(dx, dy)
+	dist := maxNumber(dx, dy)
 	log.Printf("Chebyshev Distance from (%d, %d) to (%d, %d) = %d", pos1[0], pos1[1], pos2[0], pos2[1], dist)
 	return dist
 }
 
-func (g *Game) DistanceToAttack(pos1, pos2 [2]int, weapon Weapon) int {
-	dist := max(abs(pos1[0]-pos2[0]), abs(pos1[1]-pos2[1]))
+func (g *Room) DistanceToAttack(pos1, pos2 [2]int, weapon Weapon) int {
+	dist := maxNumber(abs(pos1[0]-pos2[0]), abs(pos1[1]-pos2[1]))
 	log.Printf("Attack Distance from (%d, %d) to (%d, %d) = %d, weapon: %s", pos1[0], pos1[1], pos2[0], pos2[1], dist, weapon.Name)
 	return dist
 }
 
-func abs(x int) int {
-	if x < 0 {
-		return -x
-	}
-	return x
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-func (g *Game) CountSurroundingEnemies(char *Character) int {
+func (g *Room) CountSurroundingEnemies(char *Character) int {
 	count := 0
 	for dx := -1; dx <= 1; dx++ {
 		for dy := -1; dy <= 1; dy++ {
@@ -199,7 +224,7 @@ func (g *Game) CountSurroundingEnemies(char *Character) int {
 				continue
 			}
 			x, y := char.Position[0]+dx, char.Position[1]+dy
-			if x >= 0 && x < 16 && y >= 0 && y < 9 && g.Board[x][y] != -1 {
+			if x >= 0 && x < types.BoardVerticalSize && y >= 0 && y < types.BoardHorizontalSize && g.Board[x][y] != -1 {
 				target := g.FindCharacter(g.Board[x][y])
 				if target != nil && target.TeamID != char.TeamID && target.HP > 0 {
 					count++
@@ -211,7 +236,7 @@ func (g *Game) CountSurroundingEnemies(char *Character) int {
 	return count
 }
 
-func (g *Game) CalculateDamage(attacker, target *Character) int {
+func (g *Room) CalculateDamage(attacker, target *Character) int {
 	weapon := g.WeaponsConfig[attacker.Weapon]
 	shield := g.ShieldsConfig[attacker.Shield]
 
@@ -245,7 +270,7 @@ func (g *Game) CalculateDamage(attacker, target *Character) int {
 	return damage
 }
 
-func (g *Game) CalculateDamageAfterWrestle(attacker, target *Character) int {
+func (g *Room) CalculateDamageAfterWrestle(attacker, target *Character) int {
 	baseDamage := rand.Intn(attacker.AttackMax-attacker.AttackMin+1) + attacker.AttackMin
 	totalDefense := target.Defense
 	for _, effect := range target.Effects {
@@ -273,7 +298,7 @@ func (g *Game) CalculateDamageAfterWrestle(attacker, target *Character) int {
 	return damage
 }
 
-func (g *Game) ApplyWrestlingMove(attacker, target *Character, moveName string) {
+func (g *Room) ApplyWrestlingMove(attacker, target *Character, moveName string) {
 	var ability Ability
 	for abilityID := range g.AbilitiesConfig {
 		if abilityID == moveName {
@@ -349,44 +374,48 @@ func (g *Game) ApplyWrestlingMove(attacker, target *Character, moveName string) 
 		target.HP = 0
 		g.SetBattleLog(
 			fmt.Sprintf("%s успешно применил %s к %s и поверг его!",
-				attacker.Name, moveName, target.Name))
+				attacker.Name, ability.DisplayName, target.Name))
 		g.Board[target.Position[0]][target.Position[1]] = -1
 	case r < successChance+partialSuccessChance:
 		damage := g.CalculateDamageAfterWrestle(attacker, target)
 		target.HP -= damage
 		g.SetBattleLog(
 			fmt.Sprintf("%s применил %s  к %s и нанес %d урона!",
-				attacker.Name, moveName, target.Name, damage))
+				attacker.Name, ability.DisplayName, target.Name, damage))
 		if target.HP <= 0 {
 			g.Board[target.Position[0]][target.Position[1]] = -1
 		}
 	case r < successChance+partialSuccessChance+nothingChance:
 		g.SetBattleLog(
 			fmt.Sprintf("%s попытался сделать %s на %s и не получилось, видимо плохо подготовил прием!",
-				attacker.Name, moveName, target.Name))
+				attacker.Name, ability.DisplayName, target.Name))
 	case r < successChance+partialSuccessChance+nothingChance+failureChance:
 		attacker.HP = 0
 		target.HP = 0
 		g.SetBattleLog(
 			fmt.Sprintf("%s попытался сделать %s и, %s уже летя вниз утянул его с собой",
-				attacker.Name, moveName, target.Name))
+				attacker.Name, ability.DisplayName, target.Name))
 		g.Board[attacker.Position[0]][attacker.Position[1]] = -1
 		g.Board[target.Position[0]][target.Position[1]] = -1
 	default:
 		attacker.HP = 0
 		g.SetBattleLog(
 			fmt.Sprintf("%s попытался сделать %s на %s и, запутавшись в ногах, упал как мешок",
-				attacker.Name, moveName, target.Name))
+				attacker.Name, ability.DisplayName, target.Name))
 		g.Board[attacker.Position[0]][attacker.Position[1]] = -1
 	}
 }
 
-func (g *Game) NextTurn() {
+func (g *Room) NextTurn() {
 	// Если порядок инициативы ещё не установлен, инициализируем его
 	if len(g.InitialOrder) == 0 {
 		g.InitTurnOrder()
 	}
-
+	if len(g.InitialOrder) == 0 {
+		g.Phase = types.GamePhaseFinished
+		return
+	}
+	log.Printf("------initiative %v", g.InitialOrder)
 	// Проверяем, остались ли живые команды
 	aliveTeamsOne := 0
 	aliveTeamsTwo := 0
@@ -403,13 +432,13 @@ func (g *Game) NextTurn() {
 	}
 	if aliveTeamsOne < 1 {
 		g.Winner = 1
-		g.Phase = "finished"
+		g.Finished()
 		log.Printf("Team 1 wins!")
 		return
 	}
 	if aliveTeamsTwo < 1 {
 		g.Winner = 0
-		g.Phase = "finished"
+		g.Finished()
 		log.Printf("Team 0 wins!")
 		return
 	}
@@ -433,13 +462,13 @@ func (g *Game) NextTurn() {
 		nextChar := g.FindCharacter(g.InitialOrder[nextIndex])
 		if nextChar != nil && nextChar.HP > 0 {
 			g.CurrentTurn = nextChar.ID
-			g.Phase = "move"
+			g.Phase = types.GamePhaseMove
 			log.Printf("Next turn: %s (ID: %d)", nextChar.Name, nextChar.ID)
 			break
 		}
 		nextIndex = (nextIndex + 1) % len(g.InitialOrder)
 		if nextIndex == startIndex { // Если обошли весь круг и никого не нашли
-			g.Phase = "finished"
+			g.Phase = types.GamePhaseFinished
 			log.Printf("No alive characters left!")
 			return
 		}
@@ -459,12 +488,33 @@ func (g *Game) NextTurn() {
 	}
 }
 
-func (g *Game) SetBattleLog(action string) {
+func (g *Room) SetBattleLog(action string) {
 	bl := Battlelog{
 		Time:   time.Now().Format(time.TimeOnly),
 		Action: action,
 	}
 	g.Battlelog = append(g.Battlelog, bl)
+}
+
+// Инициализация порядка хода в начале игры (вызывать один раз)
+func (g *Room) InitTurnOrder() {
+	var liveChars []Character
+	if len(g.Teams) < 2 {
+		return
+	}
+	for _, team := range g.Teams {
+		for _, char := range team.Characters {
+			if char.HP > 0 {
+				liveChars = append(liveChars, char)
+			}
+		}
+	}
+	sortCharactersByInitiative(liveChars)
+	g.InitialOrder = make([]int, len(liveChars))
+	for i, char := range liveChars {
+		g.InitialOrder[i] = char.ID
+	}
+	log.Printf("Initial turn order set: %v", g.InitialOrder)
 }
 
 func sortCharactersByInitiative(chars []Character) {
@@ -477,18 +527,24 @@ func sortCharactersByInitiative(chars []Character) {
 	}
 }
 
-// Инициализация порядка хода в начале игры (вызывать один раз)
-func (g *Game) InitTurnOrder() {
-	liveChars := []Character{}
-	for _, team := range g.Teams {
-		for _, char := range team.Characters {
-			liveChars = append(liveChars, char)
-		}
+func heuristic(x1, y1, x2, y2 int) int {
+	return abs(x1-x2) + abs(y1-y2)
+}
+
+func isInThreatZone(x, y, enemyX, enemyY int) bool {
+	return abs(x-enemyX) <= 1 && abs(y-enemyY) <= 1
+}
+
+func abs(x int) int {
+	if x < 0 {
+		return -x
 	}
-	sortCharactersByInitiative(liveChars)
-	g.InitialOrder = make([]int, len(liveChars))
-	for i, char := range liveChars {
-		g.InitialOrder[i] = char.ID
+	return x
+}
+
+func maxNumber(a, b int) int {
+	if a > b {
+		return a
 	}
-	log.Printf("Initial turn order set: %v", g.InitialOrder)
+	return b
 }

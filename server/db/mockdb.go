@@ -1,7 +1,7 @@
 package db
 
 import (
-	"hmb_fighting/server/types"
+	"hmb_fighting/server/entities"
 	"sync"
 )
 
@@ -10,9 +10,14 @@ var mutex sync.Mutex
 // MockDatabase имитирует базу данных с предопределёнными данными
 type MockDatabase struct{}
 
+// NewMockDatabase создаёт новый экземпляр MockDatabase
+func NewMockDatabase() Database {
+	return &MockDatabase{}
+}
+
 // GetWeapons возвращает конфигурацию оружия
-func (m *MockDatabase) GetWeapons() (map[string]types.Weapon, error) {
-	return map[string]types.Weapon{
+func (m *MockDatabase) GetWeapons() (map[string]entities.Weapon, error) {
+	return map[string]entities.Weapon{
 		"falchion":           {Name: "falchion", DisplayName: "Фальшион", Range: 1, IsTwoHanded: false, ImageURL: "./static/weapons/default.png", AttackBonus: 2, GrappleBonus: 0},
 		"axe":                {Name: "axe", DisplayName: "Топор", Range: 1, IsTwoHanded: false, ImageURL: "./static/weapons/default.png", AttackBonus: 0, GrappleBonus: 8},
 		"two_handed_sword":   {Name: "two_handed_sword", DisplayName: "Двуручный меч", Range: 2, IsTwoHanded: true, ImageURL: "./static/weapons/default.png", AttackBonus: 2, GrappleBonus: 0},
@@ -21,16 +26,16 @@ func (m *MockDatabase) GetWeapons() (map[string]types.Weapon, error) {
 	}, nil
 }
 
-func (m *MockDatabase) GetShields() (map[string]types.Shield, error) {
-	return map[string]types.Shield{
+func (m *MockDatabase) GetShields() (map[string]entities.Shield, error) {
+	return map[string]entities.Shield{
 		"buckler": {Name: "buckler", DisplayName: "Баклер", DefenseBonus: 1, ImageURL: "./static/shields/default.png", AttackBonus: 1, GrappleBonus: 1},
 		"shield":  {Name: "shield", DisplayName: "Тарч", DefenseBonus: 2, ImageURL: "./static/shields/default.png", AttackBonus: 1, GrappleBonus: 0},
 		"tower":   {Name: "tower", DisplayName: "Ростовой щит", DefenseBonus: 3, ImageURL: "./static/shields/default.png", AttackBonus: 0, GrappleBonus: -1},
 	}, nil
 }
 
-func (m *MockDatabase) GetAbilities() (map[string]types.Ability, error) {
-	abilities := map[string]types.Ability{
+func (m *MockDatabase) GetAbilities() (map[string]entities.Ability, error) {
+	abilities := map[string]entities.Ability{
 		"yama_arashi": {
 			Name:        "yama_arashi",
 			DisplayName: "Подхват",
@@ -139,8 +144,8 @@ func (m *MockDatabase) GetAbilities() (map[string]types.Ability, error) {
 	return abilities, nil
 }
 
-func (m *MockDatabase) GetCharacters() ([]types.Character, error) {
-	return []types.Character{
+func (m *MockDatabase) GetCharacters() ([]entities.Character, error) {
+	return []entities.Character{
 		// TeamID 1: Партизан Два
 		{ID: 15, Name: "Тюляков Алексей", TeamID: 1, IsActive: true, RoleID: 3, HP: 100, Stamina: 9, AttackMin: 12, AttackMax: 18, Defense: 10, Initiative: 11, Wrestling: 8, Attack: 12, Weapon: "two_handed_sword", Shield: "", Height: 177, Weight: 84, CountOfAbility: 4, ImageURL: "./static/characters/default.png"},         // Поддержка (было Stamina: 12, Initiative: 14)
 		{ID: 14, Name: "Чуклов Григорий", TeamID: 1, IsActive: true, RoleID: 2, HP: 100, Stamina: 8, AttackMin: 12, AttackMax: 18, Defense: 12, Initiative: 8, Wrestling: 10, Attack: 12, Weapon: "falchion", Shield: "shield", Height: 171, Weight: 77, CountOfAbility: 4, ImageURL: "./static/characters/default.png"},           // Боец (было Stamina: 10, Initiative: 10)
@@ -330,8 +335,8 @@ func (m *MockDatabase) GetCharacters() ([]types.Character, error) {
 	}, nil
 }
 
-func (m *MockDatabase) GetRoleConfig() (map[string]types.Role, error) {
-	return map[string]types.Role{
+func (m *MockDatabase) GetRoleConfig() (map[string]entities.Role, error) {
+	return map[string]entities.Role{
 		"0": {
 			Name: "Танк",
 			ID:   "0",
@@ -355,8 +360,8 @@ func (m *MockDatabase) GetRoleConfig() (map[string]types.Role, error) {
 	}, nil
 }
 
-func (m *MockDatabase) GetTeams() (map[int]types.TeamConfig, error) {
-	return map[int]types.TeamConfig{
+func (m *MockDatabase) GetTeams() (map[int]entities.TeamConfig, error) {
+	return map[int]entities.TeamConfig{
 		1:  {ID: 1, Name: "Партизан Два", IconURL: "./static/teams/partizan_dva.png", Description: "Вторая команда партизан, стойкие и выносливые бойцы."},
 		2:  {ID: 2, Name: "Юг", IconURL: "./static/teams/south.png", Description: "Команда южных земель, известная своей тактикой."},
 		3:  {ID: 3, Name: "НСК", IconURL: "./static/teams/nsk.png", Description: "Новосибирские бойцы, сильные и решительные."},
@@ -380,12 +385,7 @@ func (m *MockDatabase) GetTeams() (map[int]types.TeamConfig, error) {
 	}, nil
 }
 
-// NewMockDatabase создаёт новый экземпляр MockDatabase
-func NewMockDatabase() Database {
-	return &MockDatabase{}
-}
-
-func (m *MockDatabase) SetUser(refreshToken string, user types.User) error {
+func (m *MockDatabase) SetUser(refreshToken string, user entities.User) error {
 	mutex.Lock()
 	users[user.Email] = user
 	if refreshToken != "" {
@@ -395,27 +395,27 @@ func (m *MockDatabase) SetUser(refreshToken string, user types.User) error {
 	return nil
 }
 
-func (m *MockDatabase) GetUserByEmail(email string) (types.User, error) {
+func (m *MockDatabase) GetUserByEmail(email string) (entities.User, error) {
 	mutex.Lock()
 	user, exists := users[email]
 	mutex.Unlock()
 	if exists {
 		return user, nil
 	}
-	return types.User{}, nil
+	return entities.User{}, nil
 }
 
-func (m *MockDatabase) GetUserByRefresh(token string) (types.User, error) {
+func (m *MockDatabase) GetUserByRefresh(token string) (entities.User, error) {
 	mutex.Lock()
 	user, exists := usersWithRefresh[token]
 	mutex.Unlock()
 	if exists {
 		return user, nil
 	}
-	return types.User{}, nil
+	return entities.User{}, nil
 }
 
-func (m *MockDatabase) GetRoom(roomID string) (*types.Game, error) {
+func (m *MockDatabase) GetRoom(roomID string) (*entities.Room, error) {
 	mutex.Lock()
 	game, exists := rooms[roomID]
 	mutex.Unlock()
@@ -425,13 +425,13 @@ func (m *MockDatabase) GetRoom(roomID string) (*types.Game, error) {
 	return nil, nil
 }
 
-func (m *MockDatabase) SetRoom(game *types.Game) error {
+func (m *MockDatabase) SetRoom(game *entities.Room) error {
 	mutex.Lock()
 	rooms[game.GameSessionId] = game
 	mutex.Unlock()
 	return nil
 }
 
-var rooms = make(map[string]*types.Game)
-var users = make(map[string]types.User)
-var usersWithRefresh = make(map[string]types.User)
+var rooms = make(map[string]*entities.Room)
+var users = make(map[string]entities.User)
+var usersWithRefresh = make(map[string]entities.User)

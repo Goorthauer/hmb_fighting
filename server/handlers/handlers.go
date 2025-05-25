@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
-	"hmb_fighting/server/types"
+	"hmb_fighting/server/entities"
 	"hmb_fighting/server/usecase"
 	"hmb_fighting/server/validators"
 	"log"
@@ -21,12 +21,12 @@ type Handler struct {
 	usecase *usecase.Usecase
 }
 
-func NewHandler(uc *usecase.Usecase) *Handler { // Изменено с db.Database на *usecase.Usecase
+func NewHandler(uc *usecase.Usecase) *Handler {
 	return &Handler{usecase: uc}
 }
 
 func (h *Handler) HandleRegister(w http.ResponseWriter, r *http.Request) {
-	var currentUser types.User
+	var currentUser entities.User
 	if err := json.NewDecoder(r.Body).Decode(&currentUser); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return

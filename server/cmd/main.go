@@ -23,10 +23,12 @@ func enableCORS(next http.Handler) http.Handler {
 }
 
 func main() {
-	database, err := db.NewPostgresDatabase()
-	if err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
-	}
+	//database, err := db.NewPostgresDatabase()
+	//if err != nil {
+	//	log.Fatalf("Failed to initialize database: %v", err)
+	//}
+
+	database := db.NewMockDatabase()
 	uc := usecase.NewUsecase(database)
 	handler := handlers.NewHandler(uc)
 

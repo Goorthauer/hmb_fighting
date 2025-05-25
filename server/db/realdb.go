@@ -5,11 +5,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"hmb_fighting/server/types"
+	"hmb_fighting/server/entities"
 	"log"
 	"os"
 	"time"
 
+	"github.com/gorilla/websocket"
 	_ "github.com/lib/pq"
 	redis "github.com/redis/go-redis/v9"
 )
@@ -91,10 +92,10 @@ func (p *PostgresDatabase) cacheDel(ctx context.Context, key string) error {
 	return p.redis.Del(ctx, key).Err()
 }
 
-func (p *PostgresDatabase) GetWeapons() (map[string]types.Weapon, error) {
+func (p *PostgresDatabase) GetWeapons() (map[string]entities.Weapon, error) {
 	ctx := context.Background()
 	cacheKey := "weapons_"
-	var weapons map[string]types.Weapon
+	var weapons map[string]entities.Weapon
 
 	// Проверяем кеш
 	if err := p.cacheGet(ctx, cacheKey, &weapons); err == nil && weapons != nil {
@@ -110,9 +111,9 @@ func (p *PostgresDatabase) GetWeapons() (map[string]types.Weapon, error) {
 	}
 	defer rows.Close()
 
-	weapons = make(map[string]types.Weapon)
+	weapons = make(map[string]entities.Weapon)
 	for rows.Next() {
-		var w types.Weapon
+		var w entities.Weapon
 		if err := rows.Scan(&w.Name, &w.DisplayName, &w.Range, &w.IsTwoHanded, &w.ImageURL, &w.AttackBonus, &w.GrappleBonus); err != nil {
 			return nil, fmt.Errorf("failed to scan weapon: %v", err)
 		}
@@ -126,10 +127,10 @@ func (p *PostgresDatabase) GetWeapons() (map[string]types.Weapon, error) {
 	return weapons, nil
 }
 
-func (p *PostgresDatabase) GetShields() (map[string]types.Shield, error) {
+func (p *PostgresDatabase) GetShields() (map[string]entities.Shield, error) {
 	ctx := context.Background()
 	cacheKey := "shields_"
-	var shields map[string]types.Shield
+	var shields map[string]entities.Shield
 
 	// Проверяем кеш
 	if err := p.cacheGet(ctx, cacheKey, &shields); err == nil && shields != nil {
@@ -145,9 +146,9 @@ func (p *PostgresDatabase) GetShields() (map[string]types.Shield, error) {
 	}
 	defer rows.Close()
 
-	shields = make(map[string]types.Shield)
+	shields = make(map[string]entities.Shield)
 	for rows.Next() {
-		var s types.Shield
+		var s entities.Shield
 		if err := rows.Scan(&s.Name, &s.DisplayName, &s.DefenseBonus, &s.ImageURL, &s.AttackBonus, &s.GrappleBonus); err != nil {
 			return nil, fmt.Errorf("failed to scan shield: %v", err)
 		}
@@ -161,10 +162,10 @@ func (p *PostgresDatabase) GetShields() (map[string]types.Shield, error) {
 	return shields, nil
 }
 
-func (p *PostgresDatabase) GetTeams() (map[int]types.TeamConfig, error) {
+func (p *PostgresDatabase) GetTeams() (map[int]entities.TeamConfig, error) {
 	ctx := context.Background()
 	cacheKey := "teams_"
-	var teams map[int]types.TeamConfig
+	var teams map[int]entities.TeamConfig
 
 	// Проверяем кеш
 	if err := p.cacheGet(ctx, cacheKey, &teams); err == nil && teams != nil {
@@ -180,9 +181,9 @@ func (p *PostgresDatabase) GetTeams() (map[int]types.TeamConfig, error) {
 	}
 	defer rows.Close()
 
-	teams = make(map[int]types.TeamConfig)
+	teams = make(map[int]entities.TeamConfig)
 	for rows.Next() {
-		var t types.TeamConfig
+		var t entities.TeamConfig
 		if err := rows.Scan(&t.ID, &t.Name, &t.IconURL, &t.Description); err != nil {
 			return nil, fmt.Errorf("failed to scan team_config: %v", err)
 		}
@@ -196,10 +197,10 @@ func (p *PostgresDatabase) GetTeams() (map[int]types.TeamConfig, error) {
 	return teams, nil
 }
 
-func (p *PostgresDatabase) GetCharacters() ([]types.Character, error) {
+func (p *PostgresDatabase) GetCharacters() ([]entities.Character, error) {
 	ctx := context.Background()
 	cacheKey := "characters_"
-	var characters []types.Character
+	var characters []entities.Character
 
 	// Проверяем кеш
 	if err := p.cacheGet(ctx, cacheKey, &characters); err == nil && len(characters) > 0 {
@@ -209,8 +210,8 @@ func (p *PostgresDatabase) GetCharacters() ([]types.Character, error) {
 	// Если кеша нет, идём в базу
 	rows, err := p.db.Query(`
 		SELECT id, name, team_id, role_id, count_of_ability, image_url, is_active,
-		       coalesce(weapon,'') as weapon,coalesce(shield,'') as shield, is_titan_armour, height, weight, hp, 
-		       stamina, initiative,  wrestling, attack, defense, attack_min, attack_max
+		       weapon, shield, is_titan_armour, height, weight, hp, stamina, initiative,
+		       wrestling, attack, defense, attack_min, attack_max
 		FROM characters`)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query characters: %v", err)
@@ -218,7 +219,7 @@ func (p *PostgresDatabase) GetCharacters() ([]types.Character, error) {
 	defer rows.Close()
 
 	for rows.Next() {
-		var c types.Character
+		var c entities.Character
 		if err := rows.Scan(&c.ID, &c.Name, &c.TeamID, &c.RoleID, &c.CountOfAbility, &c.ImageURL, &c.IsActive,
 			&c.Weapon, &c.Shield, &c.IsTitanArmour, &c.Height, &c.Weight, &c.HP, &c.Stamina, &c.Initiative,
 			&c.Wrestling, &c.Attack, &c.Defense, &c.AttackMin, &c.AttackMax); err != nil {
@@ -234,10 +235,10 @@ func (p *PostgresDatabase) GetCharacters() ([]types.Character, error) {
 	return characters, nil
 }
 
-func (p *PostgresDatabase) GetAbilities() (map[string]types.Ability, error) {
+func (p *PostgresDatabase) GetAbilities() (map[string]entities.Ability, error) {
 	ctx := context.Background()
 	cacheKey := "abilities_"
-	var abilities map[string]types.Ability
+	var abilities map[string]entities.Ability
 
 	// Проверяем кеш
 	if err := p.cacheGet(ctx, cacheKey, &abilities); err == nil && abilities != nil {
@@ -253,9 +254,9 @@ func (p *PostgresDatabase) GetAbilities() (map[string]types.Ability, error) {
 	}
 	defer rows.Close()
 
-	abilities = make(map[string]types.Ability)
+	abilities = make(map[string]entities.Ability)
 	for rows.Next() {
-		var a types.Ability
+		var a entities.Ability
 		if err := rows.Scan(&a.Name, &a.DisplayName, &a.Type, &a.Description, &a.Range, &a.ImageURL); err != nil {
 			return nil, fmt.Errorf("failed to scan ability: %v", err)
 		}
@@ -269,10 +270,10 @@ func (p *PostgresDatabase) GetAbilities() (map[string]types.Ability, error) {
 	return abilities, nil
 }
 
-func (p *PostgresDatabase) GetRoleConfig() (map[string]types.Role, error) {
+func (p *PostgresDatabase) GetRoleConfig() (map[string]entities.Role, error) {
 	ctx := context.Background()
 	cacheKey := "role_config_"
-	var roles map[string]types.Role
+	var roles map[string]entities.Role
 
 	// Проверяем кеш
 	if err := p.cacheGet(ctx, cacheKey, &roles); err == nil && roles != nil {
@@ -288,9 +289,9 @@ func (p *PostgresDatabase) GetRoleConfig() (map[string]types.Role, error) {
 	}
 	defer rows.Close()
 
-	roles = make(map[string]types.Role)
+	roles = make(map[string]entities.Role)
 	for rows.Next() {
-		var r types.Role
+		var r entities.Role
 		if err := rows.Scan(&r.ID, &r.Name); err != nil {
 			return nil, fmt.Errorf("failed to scan role: %v", err)
 		}
@@ -304,7 +305,7 @@ func (p *PostgresDatabase) GetRoleConfig() (map[string]types.Role, error) {
 	return roles, nil
 }
 
-func (p *PostgresDatabase) SetUser(refreshToken string, user types.User) error {
+func (p *PostgresDatabase) SetUser(refreshToken string, user entities.User) error {
 	ctx := context.Background()
 	tx, err := p.db.Begin()
 	if err != nil {
@@ -353,10 +354,10 @@ func (p *PostgresDatabase) SetUser(refreshToken string, user types.User) error {
 	return nil
 }
 
-func (p *PostgresDatabase) GetUserByEmail(email string) (types.User, error) {
+func (p *PostgresDatabase) GetUserByEmail(email string) (entities.User, error) {
 	ctx := context.Background()
 	cacheKey := fmt.Sprintf("user:email:%s", email)
-	var user types.User
+	var user entities.User
 
 	// Проверяем кеш
 	if err := p.cacheGet(ctx, cacheKey, &user); err == nil && user.ID != "" {
@@ -369,10 +370,10 @@ func (p *PostgresDatabase) GetUserByEmail(email string) (types.User, error) {
 		FROM users
 		WHERE email = $1`, email).Scan(&user.ID, &user.Name, &user.Email, &user.Password)
 	if err == sql.ErrNoRows {
-		return types.User{}, nil
+		return entities.User{}, nil
 	}
 	if err != nil {
-		return types.User{}, fmt.Errorf("failed to query user by email: %v", err)
+		return entities.User{}, fmt.Errorf("failed to query user by email: %v", err)
 	}
 
 	if err := p.cacheSet(ctx, cacheKey, user, p.baseTTL); err != nil {
@@ -382,10 +383,10 @@ func (p *PostgresDatabase) GetUserByEmail(email string) (types.User, error) {
 	return user, nil
 }
 
-func (p *PostgresDatabase) GetUserByRefresh(token string) (types.User, error) {
+func (p *PostgresDatabase) GetUserByRefresh(token string) (entities.User, error) {
 	ctx := context.Background()
 	cacheKey := fmt.Sprintf("user:refresh:%s", token)
-	var user types.User
+	var user entities.User
 
 	// Проверяем кеш
 	if err := p.cacheGet(ctx, cacheKey, &user); err == nil && user.ID != "" {
@@ -399,10 +400,10 @@ func (p *PostgresDatabase) GetUserByRefresh(token string) (types.User, error) {
 		JOIN refresh_tokens rt ON u.id = rt.user_id
 		WHERE rt.token = $1`, token).Scan(&user.ID, &user.Name, &user.Email, &user.Password)
 	if err == sql.ErrNoRows {
-		return types.User{}, nil
+		return entities.User{}, nil
 	}
 	if err != nil {
-		return types.User{}, fmt.Errorf("failed to query user by refresh token: %v", err)
+		return entities.User{}, fmt.Errorf("failed to query user by refresh token: %v", err)
 	}
 
 	if err := p.cacheSet(ctx, cacheKey, user, p.baseTTL); err != nil {
@@ -412,16 +413,10 @@ func (p *PostgresDatabase) GetUserByRefresh(token string) (types.User, error) {
 	return user, nil
 }
 
-func (p *PostgresDatabase) GetRoom(roomID string) (*types.Game, error) {
-	ctx := context.Background()
-	cacheKey := fmt.Sprintf("room:%s", roomID)
-	var game types.Game
+func (p *PostgresDatabase) GetRoom(roomID string) (*entities.Room, error) {
+	var game entities.Room
 
 	// Проверяем кеш
-	if err := p.cacheGet(ctx, cacheKey, &game); err == nil && game.GameSessionId != "" {
-		return &game, nil
-	}
-
 	// Логика получения из базы
 	var boardJSON []byte
 	err := p.db.QueryRow(`
@@ -439,8 +434,9 @@ func (p *PostgresDatabase) GetRoom(roomID string) (*types.Game, error) {
 		return nil, fmt.Errorf("failed to unmarshal board: %v", err)
 	}
 
-	game.Teams = make(map[int]types.Team)
+	game.Teams = make(map[int]entities.Team)
 	game.Players = make(map[int]string)
+	game.Connections = make(map[*websocket.Conn]*entities.Client)
 
 	rows, err := p.db.Query(`
 		SELECT team_id, characters
@@ -457,7 +453,7 @@ func (p *PostgresDatabase) GetRoom(roomID string) (*types.Game, error) {
 		if err := rows.Scan(&teamID, &charactersJSON); err != nil {
 			return nil, fmt.Errorf("failed to scan room team: %v", err)
 		}
-		var team types.Team
+		var team entities.Team
 		if err := json.Unmarshal(charactersJSON, &team.Characters); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal characters: %v", err)
 		}
@@ -488,14 +484,10 @@ func (p *PostgresDatabase) GetRoom(roomID string) (*types.Game, error) {
 	game.RoleConfig, _ = p.GetRoleConfig()
 	game.TeamsConfig, _ = p.GetTeams()
 
-	if err := p.cacheSet(ctx, cacheKey, game, 3*time.Minute); err != nil {
-		log.Printf("failed to cache room %s: %v", roomID, err)
-	}
-
 	return &game, nil
 }
 
-func (p *PostgresDatabase) SetRoom(game *types.Game) error {
+func (p *PostgresDatabase) SetRoom(game *entities.Room) error {
 	ctx := context.Background()
 	cacheKey := fmt.Sprintf("room:%s", game.GameSessionId)
 

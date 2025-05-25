@@ -4,10 +4,10 @@ services:
   app:
     build: .
     ports:
-      - "8080:8080"
+      - "8080:8080" # Порт приложения (замени, если нужно)
     environment:
       - DATABASE_URL=postgres://user:password@db:5432/hmb_fighting?sslmode=disable
-      - REDIS_URL=redis://:redispass@redis:6379/0
+      - REDIS_URL=redis://redis:6379/0 # URL для подключения к Redis
     depends_on:
       - db
       - redis
@@ -22,12 +22,16 @@ services:
       - POSTGRES_DB=hmb_fighting
     volumes:
       - db-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432" # Для доступа к БД извне (опционально)
     networks:
       - app-network
 
   redis:
     image: redis:7-alpine
-    command: redis-server --requirepass redispass
+    command: redis-server --requirepass redispass # Опционально: пароль для Redis
+    ports:
+      - "6379:6379" # Для доступа к Redis извне (опционально)
     volumes:
       - redis-data:/data
     networks:

@@ -2,11 +2,11 @@ package validators
 
 import (
 	"errors"
-	"hmb_fighting/server/types"
+	"hmb_fighting/server/entities"
 	"regexp"
 )
 
-func ValidateRegisterInput(user types.User) error {
+func ValidateRegisterInput(user entities.User) error {
 	if user.Name == "" {
 		return errors.New("name is required")
 	}

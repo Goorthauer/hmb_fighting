@@ -4,11 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"hmb_fighting/server/db"
-	"hmb_fighting/server/dtos"
-	"hmb_fighting/server/game"
+	"hmb_fighting/server/entities"
 	"hmb_fighting/server/jwt"
 	"hmb_fighting/server/types"
-	"hmb_fighting/server/utils"
 	"log"
 	"math/rand"
 	"strings"
@@ -25,220 +23,58 @@ func NewUsecase(db db.Database) *Usecase {
 	return &Usecase{db: db}
 }
 
-func generateClientID() string {
-	return fmt.Sprintf("%d-%d", time.Now().UnixNano(), rand.Intn(1000))
-}
-
-func (u *Usecase) RegisterUser(currentUser types.User) (*dtos.RegisterUserResp, error) {
-	user, err := u.db.GetUserByEmail(currentUser.Email)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get user: %v", err)
-	}
-
-	if user.Email != "" {
-		return nil, fmt.Errorf("User exist")
-	}
-
-	user = currentUser
-	hashPass, err := utils.HashPassword(user.Password)
-	if err != nil {
-		return nil, fmt.Errorf("Failed hash password: %v", err)
-	}
-	user.Password = hashPass
-	user.ID = generateClientID()
-
-	tokenPair, err := jwt.GenerateTokenPair(user, "spectator")
-	if err != nil {
-		return nil, fmt.Errorf("Failed to generate tokens: %v", err)
-	}
-
-	err = u.db.SetUser(tokenPair.RefreshToken, user)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to save user with refresh token: %v", err)
-	}
-
-	return &dtos.RegisterUserResp{
-		AccessToken:  tokenPair.AccessToken,
-		RefreshToken: tokenPair.RefreshToken,
-		ClientID:     user.ID,
-	}, nil
-}
-
-func (u *Usecase) LoginUser(email, password string) (*dtos.RegisterUserResp, error) {
-	user, err := u.db.GetUserByEmail(email)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get user: %v", err)
-	}
-
-	if user.Email == "" {
-		return nil, fmt.Errorf("user not exist")
-	}
-
-	utils.CheckPasswordHash(password, user.Password)
-
-	tokenPair, err := jwt.GenerateTokenPair(user, "spectator")
-	if err != nil {
-		return nil, fmt.Errorf("Failed to generate tokens: %v", err)
-	}
-
-	err = u.db.SetUser(tokenPair.RefreshToken, user)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to save user with refresh token: %v", err)
-	}
-
-	return &dtos.RegisterUserResp{
-		AccessToken:  tokenPair.AccessToken,
-		RefreshToken: tokenPair.RefreshToken,
-		ClientID:     user.ID,
-	}, nil
-}
-
-func (u *Usecase) RefreshToken(refreshToken string) (*dtos.RegisterUserResp, error) {
-	user, err := u.db.GetUserByRefresh(refreshToken)
-	if err != nil {
-		return nil, fmt.Errorf("Invalid refresh token: %v", err)
-	}
-
-	tokenPair, err := jwt.RefreshToken(refreshToken)
-	if err != nil {
-		return nil, fmt.Errorf("Invalid refresh token: %v", err)
-	}
-
-	err = u.db.SetUser(tokenPair.RefreshToken, user)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to update refresh token: %v", err)
-	}
-
-	return &dtos.RegisterUserResp{
-		AccessToken:  tokenPair.AccessToken,
-		RefreshToken: tokenPair.RefreshToken,
-		ClientID:     user.ID,
-	}, nil
-}
-
-func (u *Usecase) CheckClient(clientID, accessToken string) (bool, error) {
-	claims, err := jwt.ValidateToken(accessToken)
-	if err != nil {
-		return false, fmt.Errorf("Invalid token: %v", err)
-	}
-
-	user, err := u.db.GetUserByEmail(claims.Email)
-	if err != nil {
-		return false, fmt.Errorf("Failed to get user: %v", err)
-	}
-
-	return user.ID == clientID && user.ID == claims.ClientID, nil
-}
-
-func (u *Usecase) CreateRoom(accessToken string) (string, error) {
-	claims, err := jwt.ValidateToken(accessToken)
-	if err != nil {
-		return "", fmt.Errorf("Invalid token: %v", err)
-	}
-
-	game := game.InitGame(u.db)
-	game.Mutex.Lock()
-	defer game.Mutex.Unlock()
-	game.Players[0] = claims.ClientID
-
-	err = u.db.SetRoom(game)
-	if err != nil {
-		return "", fmt.Errorf("Failed to save room: %v", err)
-	}
-
-	return game.GameSessionId, nil
-}
-
-func (u *Usecase) RestartRoom(accessToken, roomID string) error {
+func (u *Usecase) HandleWebSocket(conn *websocket.Conn, roomID, accessToken string) error {
 	claims, err := jwt.ValidateToken(accessToken)
 	if err != nil {
 		return fmt.Errorf("Invalid token: %v", err)
 	}
 
-	game, err := u.db.GetRoom(roomID)
-	if err != nil || game == nil {
-		return fmt.Errorf("Room not found")
-	}
-
-	if game.Players[0] != claims.ClientID && game.Players[1] != claims.ClientID {
-		return fmt.Errorf("Unauthorized")
-	}
-
-	game.Mutex.Lock()
-	defer game.Mutex.Unlock()
-
-	game.Phase = "setup"
-	game.Winner = -1
-	game.CurrentTurn = -1
-	for i := range game.Board {
-		for j := range game.Board[i] {
-			game.Board[i][j] = -1
-		}
-	}
-	for teamID := range game.Teams {
-		for i := range game.Teams[teamID].Characters {
-			char := &game.Teams[teamID].Characters[i]
-			char.HP = 100
-			char.Position = [2]int{-1, -1}
-		}
-	}
-
-	err = u.db.SetRoom(game)
-	if err != nil {
-		return fmt.Errorf("Failed to save room: %v", err)
-	}
-
-	u.broadcastGameState(game)
-	log.Printf("Room %s restarted by %s", roomID, claims.ClientID)
-	return nil
-}
-
-func (u *Usecase) HandleWebSocket(conn *websocket.Conn, room, accessToken string) error {
-	claims, err := jwt.ValidateToken(accessToken)
-	if err != nil {
-		return fmt.Errorf("Invalid token: %v", err)
-	}
-
-	game, err := u.db.GetRoom(room)
-	if err != nil || game == nil {
+	room, err := u.db.GetRoom(roomID)
+	if err != nil || room == nil {
 		return fmt.Errorf("Room not found")
 	}
 
 	// Добавляем клиента в игру
-	game.Mutex.Lock()
-	client := &types.Client{
+	room.Mutex.Lock()
+	if room.Connections == nil {
+		room.Connections = make(map[*websocket.Conn]*entities.Client)
+	}
+	if room.Players == nil {
+		room.Players = make(map[int]string)
+	}
+	client := &entities.Client{
 		Conn:     conn,
 		ClientID: claims.ClientID,
-		User:     &types.User{Name: claims.Email, Email: claims.Email},
+		User:     &entities.User{Name: claims.Email, Email: claims.Email},
 	}
-	if game.Players[0] == claims.ClientID {
+	if room.Players[0] == claims.ClientID {
 		client.TeamID = 0
 		client.Spectator = false
-	} else if len(game.Players) < 2 && claims.Role == "spectator" {
+	} else if len(room.Players) < 2 && claims.Role == types.UserRoleSpectator {
 		client.TeamID = 1
 		client.Spectator = false
-		game.Players[1] = claims.ClientID
-		claims.Role = "player"
-	} else if game.Players[1] == claims.ClientID {
+		room.Players[1] = claims.ClientID
+		claims.Role = types.UserRolePlayer
+	} else if room.Players[1] == claims.ClientID {
 		client.TeamID = 1
 		client.Spectator = false
 	} else {
 		client.TeamID = -1
 		client.Spectator = true
 	}
-	game.Connections[conn] = client
-	game.Mutex.Unlock()
+	room.Connections[conn] = client
+	room.Mutex.Unlock()
 
-	u.broadcastGameState(game)
+	u.broadcastRoomState(room)
 
 	// Читаем сообщения в цикле
 	for {
 		_, msg, err := conn.ReadMessage()
 		if err != nil {
-			game.Mutex.Lock()
-			delete(game.Connections, conn)
-			game.Mutex.Unlock()
-			u.broadcastGameState(game)
+			room.Mutex.Lock()
+			delete(room.Connections, conn)
+			room.Mutex.Unlock()
+			u.broadcastRoomState(room)
 			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
 				log.Printf("Client %s disconnected normally", claims.ClientID)
 			} else {
@@ -247,7 +83,7 @@ func (u *Usecase) HandleWebSocket(conn *websocket.Conn, room, accessToken string
 			return nil
 		}
 
-		var action types.Action
+		var action entities.Action
 		if err := json.Unmarshal(msg, &action); err != nil {
 			log.Printf("Invalid action from %s: %v", claims.ClientID, err)
 			continue
@@ -259,226 +95,25 @@ func (u *Usecase) HandleWebSocket(conn *websocket.Conn, room, accessToken string
 		}
 
 		// Обрабатываем действие с минимальной блокировкой
-		u.processAction(game, client, action, claims)
-		u.broadcastGameState(game)
+		u.processAction(room, client, action, claims)
+		u.broadcastRoomState(room)
 	}
 }
 
-func (u *Usecase) processAction(game *types.Game, client *types.Client, action types.Action, claims *jwt.Claims) {
-	game.Mutex.Lock()
-	defer game.Mutex.Unlock()
-
-	if game.Phase == "setup" {
-		u.handleSetupPhase(game, client, action)
-	} else {
-		u.handleGamePhase(game, client, action, claims)
-	}
-}
-
-func (u *Usecase) SelectTeam() (*dtos.SelectTeamResp, error) {
-	teams, err := u.db.GetTeams()
-	if err != nil {
-		return nil, fmt.Errorf("Teams not found: %v", err)
-	}
-	characters, err := u.db.GetCharacters()
-	if err != nil {
-		return nil, fmt.Errorf("Characters not found: %v", err)
-	}
-
-	outChars := make(map[int][]types.Character)
-	for _, char := range characters {
-		if !char.IsActive {
-			continue
-		}
-		outChars[char.TeamID] = append(outChars[char.TeamID], char)
-	}
-
-	return &dtos.SelectTeamResp{
-		AvailableTeams: teams,
-		Characters:     outChars,
-	}, nil
-}
-
-func (u *Usecase) SetTeam(roomID string, realTeamID int, accessToken string) error {
-	claims, err := jwt.ValidateToken(accessToken)
-	if err != nil {
-		return fmt.Errorf("Invalid token: %v", err)
-	}
-
-	game, err := u.db.GetRoom(roomID)
-	if err != nil || game == nil {
-		return fmt.Errorf("Room not found")
-	}
-	for _, v := range game.TeamsConfig {
-		if realTeamID == v.ID {
-			return fmt.Errorf("Team exists")
-		}
-	}
-	teamID := -1
-	if game.Players[0] == claims.ClientID {
-		teamID = 0
-		claims.Role = "player"
-	} else if len(game.Players) < 2 && claims.Role == "spectator" {
-		teamID = 1
-		game.Players[1] = claims.ClientID
-		claims.Role = "player"
-	} else if game.Players[1] == claims.ClientID {
-		teamID = 1
-	}
-	if teamID == -1 {
-		return fmt.Errorf("Invalid team ID")
-	}
-
-	teams, err := u.db.GetTeams()
-	if err != nil {
-		return fmt.Errorf("Teams not found: %v", err)
-	}
-	characters, err := u.db.GetCharacters()
-	if err != nil {
-		return fmt.Errorf("Characters not found: %v", err)
-	}
-
-	characterTeam := make([]types.Character, 0)
-	for _, char := range characters {
-		if !char.IsActive {
-			continue
-		}
-		char.SetAbilities(game.AbilitiesConfig)
-		char.Position = [2]int{-1, -1}
-		if char.IsTitanArmour {
-			char.Wrestling += 1
-			char.Stamina += 1
-			char.Initiative += 1
-			char.Defense -= 2
-			char.HP -= 5
-			if char.HP < 1 {
-				char.HP = 1
-			}
-			if char.Defense < 0 {
-				char.Defense = 0
-			}
-		}
-		if char.TeamID == realTeamID {
-			char.TeamID = teamID
-			characterTeam = append(characterTeam, char)
-		}
-	}
-
-	game.Mutex.Lock()
-	defer game.Mutex.Unlock()
-
-	if game.TeamsConfig == nil {
-		game.TeamsConfig = make(map[int]types.TeamConfig)
-	}
-	if game.Teams == nil {
-		game.Teams = make(map[int]types.Team)
-	}
-	game.TeamsConfig[teamID] = teams[realTeamID]
-	game.Teams[teamID] = types.Team{Characters: characterTeam}
-
-	if len(game.Players) == 2 {
-		for _, team := range game.Teams {
-			for i := range team.Characters {
-				char := &team.Characters[i]
-				if shield, ok := game.ShieldsConfig[char.Shield]; ok {
-					char.Defense += shield.DefenseBonus
-					char.AttackMin += shield.AttackBonus
-					char.AttackMax += shield.AttackBonus
-				}
-				if weapon, ok := game.WeaponsConfig[char.Weapon]; ok {
-					char.AttackMin += weapon.AttackBonus
-					char.AttackMax += weapon.AttackBonus
-				}
-			}
-		}
-		if len(game.InitialOrder) == 0 {
-			game.InitTurnOrder()
-		}
-		game.Phase = "setup"
-	}
-
-	return u.db.SetRoom(game)
-}
-
-func (u *Usecase) CheckTeams(roomID, accessToken string) (bool, error) {
-	_, err := jwt.ValidateToken(accessToken)
-	if err != nil {
-		return false, fmt.Errorf("Invalid token: %v", err)
-	}
-
-	game, err := u.db.GetRoom(roomID)
-	if err != nil || game == nil {
-		return false, fmt.Errorf("Room not found")
-	}
-
-	return game.Phase == "setup", nil
-}
-
-func (u *Usecase) LeaveRoom(accessToken, roomID string) error {
-	claims, err := jwt.ValidateToken(accessToken)
-	if err != nil {
-		return fmt.Errorf("Invalid token: %v", err)
-	}
-
-	game, err := u.db.GetRoom(roomID)
-	if err != nil || game == nil {
-		return fmt.Errorf("Room not found")
-	}
-
-	game.Mutex.Lock()
-	defer game.Mutex.Unlock()
-
-	playerIndex := -1
-	for i, playerID := range game.Players {
-		if playerID == claims.ClientID {
-			playerIndex = i
-			break
-		}
-	}
-
-	if playerIndex == -1 {
-		return fmt.Errorf("You are not a player in this room")
-	}
-
-	delete(game.Players, playerIndex)
-
-	for conn, client := range game.Connections {
-		if client.ClientID == claims.ClientID {
-			delete(game.Connections, conn)
-		}
-	}
-
-	if len(game.Players) == 0 {
-		game.Phase = "pick_team"
-		log.Printf("Room %s is now empty after %s left", roomID, claims.ClientID)
-	} else {
-		log.Printf("Player %s left room %s, %d players remaining", claims.ClientID, roomID, len(game.Players))
-	}
-
-	err = u.db.SetRoom(game)
-	if err != nil {
-		return fmt.Errorf("Failed to update room: %v", err)
-	}
-
-	if len(game.Players) > 0 {
-		u.broadcastGameState(game)
-	}
-
-	log.Printf("Player %s left room %s", claims.ClientID, roomID)
-	return nil
-}
-
-func (u *Usecase) handleSetupPhase(game *types.Game, client *types.Client, action types.Action) {
-	if action.Type == "place" && client.TeamID >= 0 {
+func (u *Usecase) handleSetupPhase(game *entities.Room, client *entities.Client, action entities.Action) {
+	if action.Type == types.ActionPlace && client.TeamID >= 0 {
 		char := game.FindCharacter(action.CharacterID)
-		if char != nil && char.TeamID == client.TeamID && action.Position[0] >= 0 && action.Position[0] < 16 && action.Position[1] >= 0 && action.Position[1] < 9 {
+		if char != nil && char.HP > 0 && char.TeamID == client.TeamID && isPositionOnBoard(action.Position) {
 			if game.Board[action.Position[0]][action.Position[1]] == -1 && ((char.TeamID == 0 && action.Position[0] < 8) || (char.TeamID == 1 && action.Position[0] >= 8)) {
+				if isPositionOnBoard(char.Position) {
+					game.Board[char.Position[0]][char.Position[1]] = -1
+				}
 				char.Position = action.Position
 				game.Board[action.Position[0]][action.Position[1]] = char.ID
 				log.Printf("%s placed %s at (%d, %d)", client.ClientID, char.Name, action.Position[0], action.Position[1])
 			}
 		}
-	} else if action.Type == "start" && client.TeamID >= 0 {
+	} else if action.Type == types.ActionStart && client.TeamID >= 0 {
 		if len(game.Players) == 2 {
 			allPlaced := true
 			for _, team := range game.Teams {
@@ -494,11 +129,10 @@ func (u *Usecase) handleSetupPhase(game *types.Game, client *types.Client, actio
 				}
 				if placed < 5 {
 					allPlaced = false
-					break
 				}
 			}
 			if allPlaced {
-				game.Phase = "move"
+				game.Phase = types.GamePhaseMove
 				var maxInitiativeCharacterID int
 				maxInitiative := -1
 				for _, team := range game.Teams {
@@ -510,13 +144,13 @@ func (u *Usecase) handleSetupPhase(game *types.Game, client *types.Client, actio
 					}
 				}
 				game.CurrentTurn = maxInitiativeCharacterID
-				log.Printf("Game %s started by %s", game.GameSessionId, client.ClientID)
+				log.Printf("Room %s started by %s", game.GameSessionId, client.ClientID)
 			}
 		}
 	}
 }
 
-func (u *Usecase) handleGamePhase(game *types.Game, client *types.Client, action types.Action, claims *jwt.Claims) {
+func (u *Usecase) handleGamePhase(game *entities.Room, client *entities.Client, action entities.Action, claims *jwt.Claims) {
 	currentChar := game.FindCharacter(game.CurrentTurn)
 	if currentChar == nil || currentChar.TeamID != client.TeamID {
 		log.Printf("Not your turn or invalid character: %s", claims.ClientID)
@@ -524,21 +158,21 @@ func (u *Usecase) handleGamePhase(game *types.Game, client *types.Client, action
 	}
 
 	switch action.Type {
-	case "move":
+	case types.ActionMove:
 		u.handleMoveAction(game, currentChar, action)
-	case "attack":
+	case types.ActionAttack:
 		u.handleAttackAction(game, currentChar, action)
-	case "ability":
+	case types.ActionAbility:
 		u.handleAbilityAction(game, currentChar, action)
-	case "end_turn":
+	case types.ActionEndTurn:
 		game.NextTurn()
 		log.Printf("%s ended turn", claims.ClientID)
 	}
 }
 
-func (u *Usecase) handleAbilityAction(game *types.Game, currentChar *types.Character, action types.Action) {
+func (u *Usecase) handleAbilityAction(game *entities.Room, currentChar *entities.Character, action entities.Action) {
 	target := game.FindCharacter(action.TargetID)
-	if game.Phase == "action" && target != nil && target.TeamID != currentChar.TeamID {
+	if game.Phase == types.GamePhaseAction && canTarget(currentChar, target) {
 		ability, exists := game.AbilitiesConfig[strings.ToLower(action.Ability)]
 		if exists && game.DistanceToAbility(currentChar.Position, target.Position) <= ability.Range {
 			for i, abilityID := range currentChar.Abilities {
@@ -553,50 +187,54 @@ func (u *Usecase) handleAbilityAction(game *types.Game, currentChar *types.Chara
 	}
 }
 
-func (u *Usecase) handleMoveAction(game *types.Game, currentChar *types.Character, action types.Action) {
-	if game.Phase == "move" && action.Position[0] >= 0 && action.Position[0] < 16 && action.Position[1] >= 0 && action.Position[1] < 9 {
-		if game.Board[action.Position[0]][action.Position[1]] == -1 {
-			path, opportunityAttacks := game.FindPath(currentChar.Position[0], currentChar.Position[1], action.Position[0], action.Position[1], currentChar.Stamina, game.Board, currentChar.ID)
-			if len(path) > 0 {
-				totalDamage := 0
-				for _, oa := range opportunityAttacks {
-					attacker := game.FindCharacter(oa.AttackerID)
-					if oa.Type == "trip" {
-						game.SetBattleLog(fmt.Sprintf("%s проводит подсечку и %s безвольно падает!", attacker.Name, currentChar.Name))
-						totalDamage += oa.Damage
-					} else if oa.Type == "attack" {
-						game.SetBattleLog(fmt.Sprintf("%s атакует вслед %s на  %d урона!", attacker.Name, currentChar.Name, oa.Damage))
-						totalDamage += oa.Damage
-					}
-					currentChar.HP -= oa.Damage
-					if currentChar.HP <= 0 {
-						game.Board[currentChar.Position[0]][currentChar.Position[1]] = -1
-						break
-					}
-				}
-
-				if currentChar.HP > 0 {
-					game.Board[currentChar.Position[0]][currentChar.Position[1]] = -1
-					currentChar.Position = action.Position
-					game.Board[action.Position[0]][action.Position[1]] = currentChar.ID
-					game.Phase = "action"
-					game.SetBattleLog(fmt.Sprintf("%s ходит на (%d, %d)", currentChar.Name, action.Position[0], action.Position[1]))
-				} else {
-					game.SetBattleLog(fmt.Sprintf("%s был накаутирован во время хода (%d, %d)", currentChar.Name, action.Position[0], action.Position[1]))
-					game.NextTurn()
-				}
-			} else {
-				game.SetBattleLog(fmt.Sprintf("%s пытался пройти в (%d, %d), но путь заблокирован", currentChar.Name, action.Position[0], action.Position[1]))
+func (u *Usecase) handleMoveAction(game *entities.Room, currentChar *entities.Character, action entities.Action) {
+	haveMove :=
+		game.Phase == types.GamePhaseMove &&
+			isPositionOnBoard(currentChar.Position) &&
+			isPositionOnBoard(action.Position)
+	if !haveMove || game.Board[action.Position[0]][action.Position[1]] != -1 {
+		return
+	}
+	path, opportunityAttacks := game.FindPath(currentChar.Position[0], currentChar.Position[1], action.Position[0], action.Position[1], currentChar.Stamina, game.Board, currentChar.ID)
+	if len(path) > 0 {
+		totalDamage := 0
+		for _, oa := range opportunityAttacks {
+			attacker := game.FindCharacter(oa.AttackerID)
+			if oa.Type == types.OpportunityAttackTrip {
+				game.SetBattleLog(fmt.Sprintf("%s проводит подсечку и %s безвольно падает!", attacker.Name, currentChar.Name))
+				totalDamage += oa.Damage
+			} else if oa.Type == types.OpportunityAttackAttack {
+				game.SetBattleLog(fmt.Sprintf("%s атакует вслед %s на  %d урона!", attacker.Name, currentChar.Name, oa.Damage))
+				totalDamage += oa.Damage
+			}
+			currentChar.HP -= oa.Damage
+			if currentChar.HP <= 0 {
+				game.Board[currentChar.Position[0]][currentChar.Position[1]] = -1
+				break
 			}
 		}
+
+		if currentChar.HP > 0 {
+			game.Board[currentChar.Position[0]][currentChar.Position[1]] = -1
+			currentChar.Position = action.Position
+			game.Board[action.Position[0]][action.Position[1]] = currentChar.ID
+			game.Phase = types.GamePhaseAction
+			game.SetBattleLog(fmt.Sprintf("%s ходит на (%d, %d)", currentChar.Name, action.Position[0], action.Position[1]))
+		} else {
+			game.SetBattleLog(fmt.Sprintf("%s был накаутирован во время хода (%d, %d)", currentChar.Name, action.Position[0], action.Position[1]))
+			game.NextTurn()
+		}
+	} else {
+		game.SetBattleLog(fmt.Sprintf("%s пытался пройти в (%d, %d), но путь заблокирован", currentChar.Name, action.Position[0], action.Position[1]))
 	}
 }
 
-func (u *Usecase) handleAttackAction(game *types.Game, currentChar *types.Character, action types.Action) {
+func (u *Usecase) handleAttackAction(game *entities.Room, currentChar *entities.Character, action entities.Action) {
 	target := game.FindCharacter(action.TargetID)
-	if (game.Phase == "move" || game.Phase == "action") && target != nil && target.TeamID != currentChar.TeamID {
-		weaponRange := game.WeaponsConfig[currentChar.Weapon].Range
-		if game.DistanceToAttack(currentChar.Position, target.Position, game.WeaponsConfig[currentChar.Weapon]) <= weaponRange {
+	if (game.Phase == types.GamePhaseMove || game.Phase == types.GamePhaseAction) && canTarget(currentChar, target) {
+		weapon := game.WeaponsConfig[currentChar.Weapon]
+		weaponRange := weapon.Range
+		if game.DistanceToAttack(currentChar.Position, target.Position, weapon) <= weaponRange {
 			damage := game.CalculateDamage(currentChar, target)
 			target.HP -= damage
 			if target.HP <= 0 {
@@ -614,45 +252,77 @@ func (u *Usecase) handleAttackAction(game *types.Game, currentChar *types.Charac
 	}
 }
 
-func (u *Usecase) broadcastGameState(game *types.Game) {
-	game.Mutex.Lock()
-	defer game.Mutex.Unlock()
+func (u *Usecase) broadcastRoomState(room *entities.Room) {
+	room.Mutex.Lock()
+	defer room.Mutex.Unlock()
 
-	log.Printf("Broadcasting to %d clients", len(game.Connections))
+	log.Printf("Broadcasting to %d clients", len(room.Connections))
 
-	teams := [2]types.Team{}
+	teams := [2]entities.Team{}
 	for i := 0; i < 2; i++ {
-		if team, ok := game.Teams[i]; ok {
+		if team, ok := room.Teams[i]; ok {
 			teams[i] = team
 		}
 	}
-	teamsConfig := [2]types.TeamConfig{}
+	teamsConfig := [2]entities.TeamConfig{}
 	for i := 0; i < 2; i++ {
-		if config, ok := game.TeamsConfig[i]; ok {
+		if config, ok := room.TeamsConfig[i]; ok {
 			teamsConfig[i] = config
 		}
 	}
 
-	for conn, client := range game.Connections {
-		state := types.GameState{
+	for conn, client := range room.Connections {
+		state := entities.GameState{
 			Teams:           teams,
-			Winner:          game.Winner,
-			CurrentTurn:     game.CurrentTurn,
-			Phase:           game.Phase,
-			Board:           game.Board,
+			Winner:          room.Winner,
+			CurrentTurn:     room.CurrentTurn,
+			Phase:           room.Phase,
+			Board:           room.Board,
 			TeamID:          client.TeamID,
 			ClientID:        client.ClientID,
-			GameSessionId:   game.GameSessionId,
-			WeaponsConfig:   game.WeaponsConfig,
-			AbilitiesConfig: game.AbilitiesConfig,
-			ShieldsConfig:   game.ShieldsConfig,
+			GameSessionId:   room.GameSessionId,
+			WeaponsConfig:   room.WeaponsConfig,
+			AbilitiesConfig: room.AbilitiesConfig,
+			ShieldsConfig:   room.ShieldsConfig,
 			TeamsConfig:     teamsConfig,
-			Battlelog:       game.Battlelog, // Добавляем Battlelog
+			Battlelog:       room.Battlelog, // Добавляем Battlelog
 		}
 		if err := conn.WriteJSON(state); err != nil {
-			log.Printf("Error sending game state to %s: %v", client.ClientID, err)
+			log.Printf("Error sending room state to %s: %v", client.ClientID, err)
 			conn.Close()
-			delete(game.Connections, conn)
+			delete(room.Connections, conn)
 		}
 	}
+}
+
+func (u *Usecase) processAction(game *entities.Room, client *entities.Client, action entities.Action, claims *jwt.Claims) {
+	game.Mutex.Lock()
+	defer game.Mutex.Unlock()
+
+	if game.Phase == types.GamePhaseSetup {
+		u.handleSetupPhase(game, client, action)
+	} else {
+		u.handleGamePhase(game, client, action, claims)
+	}
+}
+
+func generateClientID() string {
+	return fmt.Sprintf("%d-%d", time.Now().UnixNano(), rand.Intn(1000))
+}
+
+func canTarget(attacker, target *entities.Character) bool {
+	return attacker != nil &&
+		target != nil &&
+		attacker.HP > 0 &&
+		target.HP > 0 &&
+		attacker.TeamID != target.TeamID &&
+		isPositionOnBoard(attacker.Position) &&
+		isPositionOnBoard(target.Position)
+}
+
+func isPositionOnBoard(position [2]int) bool {
+	return position[0] >= 0 &&
+		position[0] < types.BoardVerticalSize &&
+		position[1] >= 0 &&
+		position[1] < types.BoardHorizontalSize
 }
