@@ -209,8 +209,8 @@ func (p *PostgresDatabase) GetCharacters() ([]types.Character, error) {
 	// Если кеша нет, идём в базу
 	rows, err := p.db.Query(`
 		SELECT id, name, team_id, role_id, count_of_ability, image_url, is_active,
-		       weapon, shield, is_titan_armour, height, weight, hp, stamina, initiative,
-		       wrestling, attack, defense, attack_min, attack_max
+		       coalesce(weapon,'') as weapon,coalesce(shield,'') as shield, is_titan_armour, height, weight, hp, 
+		       stamina, initiative,  wrestling, attack, defense, attack_min, attack_max
 		FROM characters`)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query characters: %v", err)
